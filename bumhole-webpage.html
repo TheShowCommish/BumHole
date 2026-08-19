@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Financier's Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f0d; --bg-panel: #121712; --bg-panel-raised: #182018;
+    --line: #263329; --field: #1f4d3a; --field-bright: #2d6a4f;
+    --gold: #d4a72c; --gold-dim: #8a7126; --chalk: #edf1ec; --chalk-dim: #8fa093;
+    --miss: #b25454; --hit: #4fa172; --push: #b8942f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--chalk); font-family: 'Work Sans', sans-serif; min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 80px; }
+  header.top { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid var(--field-bright); padding-bottom: 12px; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  h1 { font-family: 'Teko', sans-serif; font-weight: 700; font-size: 44px; letter-spacing: 0.5px; margin: 0; line-height: 0.9; }
+  h1 span { color: var(--gold); }
+  .subtitle { font-size: 12px; color: var(--chalk-dim); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; }
+  .week-nav { display: flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+  .week-nav input { width: 60px; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .tab-btn { background: none; border: none; color: var(--chalk-dim); padding: 10px 16px; font-family: 'Teko', sans-serif; font-size: 20px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border-bottom: 3px solid transparent; }
+  .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  .financier-bar { background: linear-gradient(90deg, #2a1f0d, #121712); border: 1px solid var(--gold-dim); border-left: 4px solid var(--gold); padding: 12px 16px; margin-bottom: 18px; border-radius: 3px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .financier-bar .label { font-family: 'Teko', sans-serif; font-size: 15px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); }
+  .financier-bar .name { font-size: 16px; font-weight: 600; }
+  .financier-bar .hint { font-size: 11px; color: var(--chalk-dim); margin-left: auto; }
+
+  .layout { display: grid; grid-template-columns: 1fr 320px; gap: 22px; }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 5px; padding: 16px; margin-bottom: 16px; }
+  .panel h2 { font-family: 'Teko', sans-serif; font-size: 24px; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: baseline; }
+  .panel h2 .sub { font-family: 'Work Sans', sans-serif; font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--chalk-dim); }
+
+  select, input[type=text], input[type=number], input[type=password], textarea {
+    background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--chalk);
+    padding: 8px 10px; border-radius: 3px; font-family: 'Work Sans', sans-serif; font-size: 14px;
+  }
+  select:focus, input:focus, textarea:focus { outline: 2px solid var(--field-bright); outline-offset: 1px; }
+
+  .btn { background: var(--field-bright); color: var(--chalk); border: none; padding: 8px 14px; border-radius: 3px; font-weight: 600; font-size: 13px; cursor: pointer; letter-spacing: 0.3px; }
+  .btn:hover { background: #357a5a; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--chalk-dim); }
+  .btn.ghost:hover { border-color: var(--chalk-dim); color: var(--chalk); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.small { padding: 5px 9px; font-size: 11px; }
+
+  .login-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .logged-in-badge { background: var(--bg-panel-raised); border: 1px solid var(--field-bright); padding: 6px 12px; border-radius: 3px; font-size: 13px; }
+  .logged-in-badge .swap { color: var(--chalk-dim); text-decoration: underline; cursor: pointer; margin-left: 10px; font-size: 11px; }
+
+  .score-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  .score-list { margin-top: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+  .score-list .row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  .score-list .row.lowest { color: var(--gold); font-weight: 600; }
+
+  .game { border: 1px solid var(--line); border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
+  .game-head { display: flex; justify-content: space-between; background: var(--bg-panel-raised); padding: 8px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--chalk-dim); }
+  .game-teams { padding: 10px 12px 4px; font-family: 'Teko', sans-serif; font-size: 22px; letter-spacing: 0.3px; }
+  .game-teams .at { color: var(--chalk-dim); font-size: 16px; margin: 0 6px; }
+  .markets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px 12px 4px; }
+  @media (max-width: 560px) { .markets { grid-template-columns: 1fr; } }
+  .market-col .market-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--chalk-dim); margin-bottom: 4px; }
+  .sel-btn { width: 100%; text-align: left; background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--chalk); padding: 7px 9px; border-radius: 3px; margin-bottom: 5px; cursor: pointer; font-family: 'Work Sans', sans-serif; font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
+  .sel-btn:hover:not(:disabled) { border-color: var(--field-bright); }
+  .sel-btn .odds { font-family: 'IBM Plex Mono', monospace; color: var(--gold); font-size: 12px; white-space: nowrap; }
+  .sel-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .sel-btn.mine { border-color: var(--field-bright); background: #16281f; }
+  .props-toggle { padding: 4px 12px 12px; }
+  .props-toggle .link { font-size: 11px; color: var(--chalk-dim); text-decoration: underline; cursor: pointer; }
+  .props-block { padding: 0 12px 12px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  @media (max-width: 560px) { .props-block { grid-template-columns: 1fr; } }
+
+  .slot-list { display: flex; flex-direction: column; gap: 6px; }
+  .slot { border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px; font-size: 13px; }
+  .slot.filled { border-color: var(--field-bright); background: var(--bg-panel-raised); }
+  .slot.is-financier { border-color: var(--gold-dim); background: #1c180e; }
+  .slot .who { font-weight: 600; }
+  .slot .pick-desc { color: var(--chalk-dim); font-size: 12px; margin-top: 2px; }
+  .slot .pick-odds { font-family: 'IBM Plex Mono', monospace; color: var(--gold); font-size: 12px; }
+  .slot .empty-txt { color: var(--chalk-dim); font-style: italic; font-size: 12px; }
+  .slot .remove-x { float: right; cursor: pointer; color: var(--miss); font-size: 11px; }
+
+  .parlay-summary { font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.6; }
+  .parlay-summary .big { font-family: 'Teko', sans-serif; font-size: 38px; color: var(--gold); line-height: 1; }
+
+  .status-msg { font-size: 12px; color: var(--chalk-dim); margin-top: 6px; }
+  .status-msg.err { color: #d98a8a; }
+
+  .history-week { border: 1px solid var(--line); border-radius: 4px; margin-bottom: 14px; overflow: hidden; }
+  .history-week .hw-head { background: var(--bg-panel-raised); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .history-week .hw-head .wk { font-family: 'Teko', sans-serif; font-size: 22px; }
+  .history-week .hw-body { padding: 10px 14px; }
+  .hist-pick { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; gap: 8px; flex-wrap: wrap; }
+  .grade-badge { font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+  .grade-badge.hit { background: rgba(79,161,114,0.2); color: var(--hit); border: 1px solid var(--hit); }
+  .grade-badge.miss { background: rgba(178,84,84,0.2); color: var(--miss); border: 1px solid var(--miss); }
+  .grade-badge.push { background: rgba(184,148,47,0.2); color: var(--push); border: 1px solid var(--push); }
+  .grade-badge.pending { background: rgba(143,160,147,0.15); color: var(--chalk-dim); border: 1px solid var(--line); }
+  .grade-badge.void { background: rgba(143,160,147,0.15); color: var(--chalk-dim); border: 1px dashed var(--line); }
+  .grade-badge.ass_clown { background: rgba(178,84,84,0.12); color: #d98a8a; border: 1px dashed var(--miss); }
+  .manual-grade { display: flex; gap: 4px; }
+
+  .hist-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .hist-section { margin-bottom: 24px; }
+  .hist-section h3 { font-family: 'Teko', sans-serif; font-size: 20px; letter-spacing: 1px; text-transform: uppercase; color: var(--chalk-dim); margin: 0 0 10px; }
+
+  .chart-wrap { overflow-x: auto; }
+  .bar-chip { font-size: 10px; fill: var(--chalk-dim); }
+
+  .owner-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .owner-table th { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase; color: var(--chalk-dim); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .owner-table td { padding: 8px; border-bottom: 1px solid var(--line); }
+  .owner-table tr.owner-row { cursor: pointer; }
+  .owner-table tr.owner-row:hover { background: var(--bg-panel-raised); }
+  .owner-detail-row td { padding: 0; }
+  .owner-detail { padding: 8px 8px 12px 24px; background: var(--bg-panel-raised); }
+  .win-pct { font-family: 'IBM Plex Mono', monospace; color: var(--gold); }
+
+  .bets-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .bets-table th { text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase; color: var(--chalk-dim); padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg-panel); }
+  .bets-table td { padding: 6px 8px; border-bottom: 1px dashed var(--line); }
+  .bets-table-wrap { max-height: 480px; overflow-y: auto; }
+
+  .owner-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .owner-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-panel-raised); border: 1px solid var(--field-bright); border-radius: 999px; padding: 5px 6px 5px 12px; font-size: 13px; }
+  .owner-chip .x { cursor: pointer; color: var(--chalk-dim); background: rgba(0,0,0,0.25); border-radius: 999px; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; }
+  .owner-chip .x:hover { color: var(--miss); }
+  .add-owner-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+
+  .pin-reveal { font-family: 'IBM Plex Mono', monospace; color: var(--gold); }
+  .login-gate-msg { text-align: center; color: var(--chalk-dim); padding: 30px 16px; font-size: 14px; }
+
+  footer.note { font-size: 11px; color: var(--chalk-dim); text-align: center; margin-top: 30px; line-height: 1.6; }
+  .hidden { display: none !important; }
+  .db-banner { background: #2a1f0d; border: 1px solid var(--gold-dim); border-left: 4px solid var(--gold); color: var(--chalk); padding: 10px 14px; border-radius: 3px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
+  .db-banner.err { background: #2a1212; border-color: var(--miss); border-left-color: var(--miss); }
+  .setup-panel code { background: var(--bg-panel-raised); padding: 2px 6px; border-radius: 3px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+  .setup-panel ol { line-height: 1.9; padding-left: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>THE <span>FINANCIER'S</span> BOARD</h1>
+      <div class="subtitle">One leg each. Lowest score pays.</div>
+    </div>
+    <div class="week-pill" id="weekPill">Week —</div>
+  </header>
+
+  <div class="db-banner" id="dbBanner" style="display:none;"></div>
+
+  <div class="panel setup-panel hidden" id="setupPanel">
+    <h2>One-time setup</h2>
+    <p style="font-size:13px; line-height:1.6;">This app stores everything in your own Supabase database so all 12 of you share the same board from any device. It takes about five minutes to wire up:</p>
+    <ol style="font-size:13px;">
+      <li>Create a free account at <strong>supabase.com</strong> and start a new project.</li>
+      <li>In your project, open <strong>SQL Editor &rarr; New query</strong>, paste in the whole <code>schema.sql</code> file that came with this app, and hit Run. That builds the tables and loads your 2025 season.</li>
+      <li>Go to <strong>Project Settings &rarr; API</strong> and copy the <strong>Project URL</strong> and the <strong>publishable</strong> (client-safe) key.</li>
+      <li>Open this HTML file in a text editor. Near the top of the <code>&lt;script&gt;</code> block, paste them into <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code>.</li>
+      <li>Save, reload, and you're live. Host the file anywhere static (Netlify, Vercel, GitHub Pages, Cloudflare Pages) and share that URL with the league.</li>
+    </ol>
+    <p style="font-size:12px; color:var(--chalk-dim); line-height:1.6;">Worth knowing before you make the page public: the publishable key and the odds-API key both sit in the page source where anyone can read them, and the database policies in <code>schema.sql</code> let anyone with the URL read and write. That's fine for a private link among friends. The bottom of <code>schema.sql</code> spells out how to tighten it if you ever want the page truly public.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="board">This Week</button>
+    <button class="tab-btn" data-tab="history">History</button>
+    <button class="tab-btn" data-tab="admin">Admin</button>
+  </div>
+
+  <div id="tab-board">
+    <div class="financier-bar">
+      <div class="label">This week's financier</div>
+      <div class="name" id="financierName">Waiting on scores…</div>
+      <div class="hint">Auto-set to whoever reports the lowest fantasy score</div>
+    </div>
+
+    <div class="panel" id="loginPanel">
+      <h2>Log In</h2>
+      <div id="loginArea"></div>
+    </div>
+
+    <div class="layout" id="boardLayout">
+      <div>
+
+        <div class="panel">
+          <h2>NFL Board <span class="sub" id="oddsUpdated"></span></h2>
+          <div class="status-msg" id="creditStatus"></div>
+          <div class="status-msg" style="font-style:italic;">Estimate based on The Odds API's documented per-call cost — not pulled live from their billing, since browsers can't read that response header for this API.</div>
+          <div class="filters" style="display:flex; gap:8px; flex-wrap:wrap; margin:10px 0;">
+            <select id="filterDay"><option value="all">All Days</option></select>
+            <select id="filterTeam"><option value="all">All Teams</option></select>
+            <select id="filterType">
+              <option value="all">All Games</option>
+              <option value="close">Close games (fav ≤ -175)</option>
+              <option value="blowout">Blowouts (fav ≥ -300)</option>
+            </select>
+            <button class="btn ghost small" id="filterReset">Reset filters</button>
+          </div>
+          <div id="boardStatus" class="status-msg">Loading odds…</div>
+          <div id="board"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h2>Picks (<span id="pickCount">0</span>/<span id="slotCount">0</span>)</h2>
+          <div class="slot-list" id="slotList"></div>
+        </div>
+        <div class="panel">
+          <h2>Live Parlay</h2>
+          <div class="parlay-summary" id="parlaySummary">No legs yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-history" class="hidden">
+    <div class="panel">
+      <h2>Season History</h2>
+      <div class="hist-filters">
+        <select id="histOwnerFilter"><option value="all">All Owners</option></select>
+        <select id="histYearFilter"><option value="all">All Years</option></select>
+      </div>
+      <div id="historyStatus" class="status-msg">Loading history…</div>
+
+      <div class="hist-section">
+        <h3>By Owner</h3>
+        <div class="status-msg">Click a row to see their full bet list.</div>
+        <table class="owner-table" id="ownerTable"><thead><tr><th>Owner</th><th>W</th><th>L</th><th>Void</th><th>Ass Clown</th><th>Win %</th><th>Fin. Weeks</th></tr></thead><tbody id="ownerTableBody"></tbody></table>
+      </div>
+
+      <div class="hist-section">
+        <h3>Weekly Results</h3>
+        <div class="status-msg">Green = hit, red = miss, gold outline = void, dashed red = Ass Clown (no bet submitted).</div>
+        <div class="chart-wrap" id="historyChart" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="hist-section">
+        <h3>All Bets</h3>
+        <div class="bets-table-wrap">
+          <table class="bets-table"><thead><tr><th>Year</th><th>Wk</th><th>Owner</th><th>Wager</th><th>Line</th><th>Result</th></tr></thead><tbody id="allBetsBody"></tbody></table>
+        </div>
+      </div>
+
+      <div class="hist-section">
+        <h3>Aggressiveness <span style="font-size:11px; color:var(--chalk-dim); text-transform:none; letter-spacing:0;">(picks with a recorded line only — 2026 season onward)</span></h3>
+        <div id="aggressivenessTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-admin" class="hidden">
+    <div class="panel" id="adminGate"></div>
+    <div id="adminContent" class="hidden">
+      <div class="panel">
+        <h2>Owners</h2>
+        <div class="owner-chips" id="ownerChips"></div>
+        <div class="add-owner-row">
+          <input type="text" id="newOwnerInput" placeholder="Add an owner…" style="min-width:200px;">
+          <button class="btn small" id="addOwnerBtn">Add</button>
+        </div>
+        <div class="status-msg" id="adminRosterStatus"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Scores <span class="sub" id="adminScoreWeekLabel"></span></h2>
+        <div class="status-msg">Enter or correct anyone's score for the current week — this overrides self-reported scores.</div>
+        <div id="adminScoreRows" style="margin-top:8px;"></div>
+        <div style="margin-top:8px;"><button class="btn small" id="adminSaveScores">Save scores</button></div>
+        <div class="status-msg" id="adminScoreStatus"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Week Override <span class="sub">only touch this if auto-detection is wrong</span></h2>
+        <div class="status-msg">The week is normally figured out automatically from today's date. Set a number here only to force a correction (bye weeks, holiday scheduling quirks, etc). Clear it to go back to automatic.</div>
+        <div class="score-row">
+          <input type="number" id="adminWeekOverride" min="1" max="22" placeholder="e.g. 7">
+          <button class="btn ghost small" id="adminSetWeekOverride">Set override</button>
+          <button class="btn ghost small" id="adminClearWeekOverride">Clear override</button>
+        </div>
+        <div class="status-msg" id="adminWeekStatus"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Player PINs</h2>
+        <div class="status-msg">Set or reset anyone's 4-digit PIN — handy when someone forgets theirs.</div>
+        <div id="adminPinRows" style="margin-top:8px;"></div>
+        <div class="status-msg" id="adminPinStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="note">
+    Odds and grading via The Odds API (DraftKings lines). Financier is decided by self-reported scores, lowest wins the honor.<br>
+    Names are claimed with a simple PIN — good enough to stop your buddy from picking for you, not a real security system.
+  </footer>
+</div>
+
+<script>
+// ============================================================
+// SETUP — Supabase project details
+// Project Settings > API in your Supabase dashboard
+// The second value is the publishable (client-safe) key. Never put a
+// service_role / secret key here — it bypasses all row-level security.
+// ============================================================
+const SUPABASE_URL = "https://joqypzsibdjhewvhdjfx.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Lbpcc0izGF5-PIo0ePaArQ_ZLljw3EU";
+
+// Paste your The Odds API key here (kept out of git on purpose):
+const ODDS_API_KEY = "";
+const SPORT = "americanfootball_nfl";
+const ODDS_URL = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h,spreads,totals&oddsFormat=american&bookmakers=draftkings`;
+const SCORES_URL = `https://api.the-odds-api.com/v4/sports/${SPORT}/scores/?apiKey=${ODDS_API_KEY}&daysFrom=3`;
+const PROP_MARKETS = "player_pass_tds,player_rush_yds,player_reception_yds,player_anytime_td";
+const CURRENT_YEAR = 2026;
+
+// 2026 NFL regular season opens Wednesday Sept 9, 2026 — weeks run Wed-Tue this season.
+const SEASON_ANCHOR = new Date('2026-09-09T00:00:00-04:00');
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function computeAutoWeek(now) {
+  const diff = now.getTime() - SEASON_ANCHOR.getTime();
+  let weekNum = Math.floor(diff / WEEK_MS) + 1;
+  weekNum = Math.max(1, Math.min(18, weekNum));
+  const start = new Date(SEASON_ANCHOR.getTime() + (weekNum - 1) * WEEK_MS);
+  const end = new Date(start.getTime() + WEEK_MS);
+  return { week: weekNum, start, end };
+}
+
+function currentWeekWindow() {
+  if (config.weekOverride) {
+    const start = new Date(SEASON_ANCHOR.getTime() + (config.weekOverride - 1) * WEEK_MS);
+    const end = new Date(start.getTime() + WEEK_MS);
+    return { week: config.weekOverride, start, end, manual: true };
+  }
+  const auto = computeAutoWeek(new Date());
+  return { ...auto, manual: false };
+}
+
+// ---------- STATE ----------
+let config = { week: 1, roster: [], weekOverride: null };
+let players = {};        // owner name -> pin
+let picks = {};          // owner name -> pick obj (current week)
+let scores = {};         // owner name -> fantasy score (current week)
+let games = [];
+let propsCache = {};     // gameId -> markets array
+let manualGrades = {};   // legacy in-memory cache; grades now live on the picks rows
+let apiScoresCache = null;
+let sessionUser = null;
+let filterDay = 'all';
+let filterTeam = 'all';
+let filterType = 'all';
+
+// ---------- ODDS HELPERS ----------
+function favoritePrice(g) {
+  const dk = (g.bookmakers || []).find(b => b.key === 'draftkings') || g.bookmakers?.[0];
+  if (!dk) return null;
+  const h2h = (dk.markets || []).find(m => m.key === 'h2h');
+  if (!h2h) return null;
+  const prices = h2h.outcomes.map(o => o.price).filter(p => typeof p === 'number');
+  if (!prices.length) return null;
+  const min = Math.min(...prices);
+  return min < 0 ? min : null; // no clear favorite (pick'em / all positive) -> null
+}
+
+function gameDayLabel(g) {
+  return new Date(g.commence_time).toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+function americanToDecimal(am){ am = Number(am); return am > 0 ? (am/100)+1 : (100/Math.abs(am))+1; }
+function decimalToAmerican(dec){ return dec >= 2 ? "+" + Math.round((dec-1)*100) : Math.round(-100/(dec-1)).toString(); }
+function fmtAm(am){ const n = Number(am); return n > 0 ? `+${n}` : `${n}`; }
+
+
+// ============================================================
+// DATA LAYER — Supabase
+// ============================================================
+let sb = null;              // supabase client
+let dbReady = false;
+let dbError = null;
+
+function initSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL.includes('YOUR-PROJECT')) {
+    dbError = 'not-configured';
+    return false;
+  }
+  try {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    dbReady = true;
+    return true;
+  } catch (e) {
+    dbError = e.message || String(e);
+    console.error('Supabase init failed', e);
+    return false;
+  }
+}
+
+function showDbBanner(msg, isError) {
+  const el = document.getElementById('dbBanner');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = isError ? 'db-banner err' : 'db-banner';
+  el.style.display = msg ? 'block' : 'none';
+}
+
+// ---- generic key/value config (caches, admin pin, week override, credit tally) ----
+async function storageGet(key) {
+  if (!dbReady) return null;
+  try {
+    const { data, error } = await sb.from('app_config').select('value').eq('key', key).maybeSingle();
+    if (error) throw error;
+    return data ? data.value : null;
+  } catch (e) { console.error('config read failed', key, e); return null; }
+}
+
+async function storageSet(key, obj, statusEl) {
+  if (!dbReady) {
+    if (statusEl) { statusEl.textContent = 'Not connected to the database — see the banner at the top of the page.'; statusEl.className = 'status-msg err'; }
+    return false;
+  }
+  try {
+    const { error } = await sb.from('app_config').upsert({ key, value: obj, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('config write failed', key, e);
+    if (statusEl) { statusEl.textContent = `Couldn't save: ${e.message || e}`; statusEl.className = 'status-msg err'; }
+    return false;
+  }
+}
+
+// ---- owners ----
+async function dbLoadOwners() {
+  if (!dbReady) return { names: [], pins: {} };
+  try {
+    const { data, error } = await sb.from('owners').select('name, pin, sort_order').order('sort_order').order('name');
+    if (error) throw error;
+    const names = data.map(r => r.name);
+    const pins = {};
+    data.forEach(r => { if (r.pin) pins[r.name] = r.pin; });
+    return { names, pins };
+  } catch (e) { console.error('owners read failed', e); return { names: [], pins: {} }; }
+}
+
+async function dbSaveOwners(names, statusEl) {
+  if (!dbReady) { if (statusEl) { statusEl.textContent = 'Not connected to the database.'; statusEl.className = 'status-msg err'; } return false; }
+  try {
+    const rows = names.map((n, i) => ({ name: n, sort_order: i }));
+    const { error: upErr } = await sb.from('owners').upsert(rows, { onConflict: 'name' });
+    if (upErr) throw upErr;
+    // remove owners no longer on the list (their picks/scores cascade away too)
+    const { data: existing, error: exErr } = await sb.from('owners').select('name');
+    if (exErr) throw exErr;
+    const stale = existing.map(r => r.name).filter(n => !names.includes(n));
+    if (stale.length) {
+      const { error: delErr } = await sb.from('owners').delete().in('name', stale);
+      if (delErr) throw delErr;
+    }
+    return true;
+  } catch (e) {
+    console.error('owners write failed', e);
+    if (statusEl) { statusEl.textContent = `Couldn't save owners: ${e.message || e}`; statusEl.className = 'status-msg err'; }
+    return false;
+  }
+}
+
+async function dbSetPin(name, pin, statusEl) {
+  if (!dbReady) { if (statusEl) { statusEl.textContent = 'Not connected to the database.'; statusEl.className = 'status-msg err'; } return false; }
+  try {
+    const { error } = await sb.from('owners').update({ pin }).eq('name', name);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('pin write failed', e);
+    if (statusEl) { statusEl.textContent = `Couldn't save PIN: ${e.message || e}`; statusEl.className = 'status-msg err'; }
+    return false;
+  }
+}
+
+// ---- picks ----
+async function dbLoadPicks(season, week) {
+  if (!dbReady) return {};
+  try {
+    const { data, error } = await sb.from('picks').select('*').eq('season', season).eq('week', week);
+    if (error) throw error;
+    const out = {};
+    data.forEach(r => {
+      out[r.owner] = {
+        selId: r.sel_id, gameId: r.game_id, market: r.market, selectionName: r.selection_name,
+        point: r.point, home_team: r.home_team, away_team: r.away_team,
+        desc: r.description, odds: r.odds, grade: r.grade
+      };
+    });
+    return out;
+  } catch (e) { console.error('picks read failed', e); return {}; }
+}
+
+async function dbSavePick(season, week, owner, p, statusEl) {
+  if (!dbReady) { if (statusEl) { statusEl.textContent = 'Not connected to the database.'; statusEl.className = 'status-msg err'; } return false; }
+  try {
+    const { error } = await sb.from('picks').upsert({
+      season, week, owner,
+      description: p.desc, odds: p.odds, market: p.market, sel_id: p.selId, game_id: p.gameId,
+      selection_name: p.selectionName, point: p.point, home_team: p.home_team, away_team: p.away_team,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'season,week,owner' });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('pick write failed', e);
+    if (statusEl) { statusEl.textContent = `Couldn't save pick: ${e.message || e}`; statusEl.className = 'status-msg err'; }
+    return false;
+  }
+}
+
+async function dbDeletePick(season, week, owner) {
+  if (!dbReady) return false;
+  try {
+    const { error } = await sb.from('picks').delete().eq('season', season).eq('week', week).eq('owner', owner);
+    if (error) throw error;
+    return true;
+  } catch (e) { console.error('pick delete failed', e); return false; }
+}
+
+async function dbSetGrade(season, week, owner, grade) {
+  if (!dbReady) return false;
+  try {
+    const { error } = await sb.from('picks').update({ grade }).eq('season', season).eq('week', week).eq('owner', owner);
+    if (error) throw error;
+    return true;
+  } catch (e) { console.error('grade write failed', e); return false; }
+}
+
+// ---- scores ----
+async function dbLoadScores(season, week) {
+  if (!dbReady) return {};
+  try {
+    const { data, error } = await sb.from('scores').select('owner, points').eq('season', season).eq('week', week);
+    if (error) throw error;
+    const out = {};
+    data.forEach(r => { out[r.owner] = Number(r.points); });
+    return out;
+  } catch (e) { console.error('scores read failed', e); return {}; }
+}
+
+async function dbSaveScore(season, week, owner, points, statusEl) {
+  if (!dbReady) { if (statusEl) { statusEl.textContent = 'Not connected to the database.'; statusEl.className = 'status-msg err'; } return false; }
+  try {
+    const { error } = await sb.from('scores').upsert({ season, week, owner, points }, { onConflict: 'season,week,owner' });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('score write failed', e);
+    if (statusEl) { statusEl.textContent = `Couldn't save score: ${e.message || e}`; statusEl.className = 'status-msg err'; }
+    return false;
+  }
+}
+
+async function dbDeleteScore(season, week, owner) {
+  if (!dbReady) return false;
+  try {
+    const { error } = await sb.from('scores').delete().eq('season', season).eq('week', week).eq('owner', owner);
+    if (error) throw error;
+    return true;
+  } catch (e) { console.error('score delete failed', e); return false; }
+}
+
+// ---- financiers ----
+async function dbLoadFinancier(season, week) {
+  if (!dbReady) return null;
+  try {
+    const { data, error } = await sb.from('financiers').select('owner').eq('season', season).eq('week', week).maybeSingle();
+    if (error) throw error;
+    return data ? data.owner : null;
+  } catch (e) { return null; }
+}
+
+async function loadConfig() {
+  const c = await storageGet('week-config');
+  if (c) { config.weekOverride = c.weekOverride ?? null; }
+  const owned = await dbLoadOwners();
+  config.roster = owned.names;
+  players = owned.pins;
+  if (!config.week) config.week = 1;
+}
+async function loadPlayers() {
+  const owned = await dbLoadOwners();
+  players = owned.pins;
+}
+async function loadWeekData() {
+  picks = await dbLoadPicks(CURRENT_YEAR, config.week);
+  scores = await dbLoadScores(CURRENT_YEAR, config.week);
+}
+
+function financierName() {
+  const entries = Object.entries(scores);
+  if (!entries.length) return null;
+  entries.sort((a,b) => a[1]-b[1]);
+  return entries[0][0];
+}
+
+// ---------- RENDER: shell ----------
+function renderShell() {
+  const wk = currentWeekWindow();
+  config.week = wk.week;
+  document.getElementById('weekPill').textContent = `Week ${wk.week}${wk.manual ? ' (manual)' : ''}`;
+}
+
+function renderLogin() {
+  const area = document.getElementById('loginArea');
+  if (sessionUser) {
+    area.innerHTML = `<div class="logged-in-badge">Logged in as <strong>${sessionUser}</strong><span class="swap" id="swapUser">switch</span></div>`;
+    document.getElementById('swapUser').addEventListener('click', () => { sessionUser = null; renderLogin(); syncEnabledState(); });
+  } else {
+    const names = config.roster || [];
+    area.innerHTML = `
+      <div class="login-row">
+        <select id="loginName"><option value="">Select your name…</option>${names.map(n=>`<option value="${n}">${n}</option>`).join('')}</select>
+        <input type="password" id="loginPin" placeholder="4-digit PIN" maxlength="4" style="width:100px;">
+        <button class="btn small" id="loginBtn">Log in</button>
+      </div>
+      <div class="status-msg" id="loginStatus"></div>
+    `;
+    document.getElementById('loginBtn').addEventListener('click', handleLogin);
+  }
+  syncEnabledState();
+}
+
+async function handleLogin() {
+  const name = document.getElementById('loginName').value;
+  const pin = document.getElementById('loginPin').value.trim();
+  const statusEl = document.getElementById('loginStatus');
+  if (!name) { statusEl.textContent = 'Pick your name first.'; statusEl.className = 'status-msg err'; return; }
+  if (!/^\d{4}$/.test(pin)) { statusEl.textContent = 'PIN needs to be 4 digits.'; statusEl.className = 'status-msg err'; return; }
+  if (!players[name]) {
+    players[name] = pin;
+    const ok = await dbSetPin(name, pin, statusEl);
+    if (!ok) return;
+    statusEl.textContent = `PIN claimed for ${name}.`; statusEl.className = 'status-msg';
+  } else if (players[name] !== pin) {
+    statusEl.textContent = 'Wrong PIN for that name.'; statusEl.className = 'status-msg err'; return;
+  }
+  sessionUser = name;
+  renderLogin();
+  renderBoard();
+  renderScores();
+}
+
+function syncEnabledState() {
+  // Nothing on the board is usable until someone identifies themselves.
+  const layout = document.getElementById('boardLayout');
+  if (!layout) return;
+  layout.style.display = sessionUser ? '' : 'none';
+  const gate = document.getElementById('loginGateMsg');
+  if (!sessionUser && !gate) {
+    const msg = document.createElement('div');
+    msg.id = 'loginGateMsg';
+    msg.className = 'login-gate-msg';
+    msg.textContent = 'Log in above to see the board and make your pick.';
+    layout.parentNode.insertBefore(msg, layout);
+  } else if (sessionUser && gate) {
+    gate.remove();
+  }
+}
+
+// ---------- SCORES / FINANCIER ----------
+function renderScores() {
+  const fin = financierName();
+  document.getElementById('financierName').textContent = fin || 'Waiting on scores…';
+  syncEnabledState();
+}
+
+// ---------- ADMIN ----------
+let adminPin = null;
+let sessionAdmin = false;
+
+async function loadAdminPin() {
+  const p = await storageGet('admin-pin');
+  adminPin = p ? p.pin : null;
+}
+
+function renderAdminGate() {
+  const gate = document.getElementById('adminGate');
+  const content = document.getElementById('adminContent');
+  if (sessionAdmin) {
+    gate.innerHTML = `<h2>Admin</h2><div class="logged-in-badge">Logged in as admin<span class="swap" id="adminSwap">log out</span></div>`;
+    document.getElementById('adminSwap').addEventListener('click', () => { sessionAdmin = false; renderAdminGate(); });
+    content.classList.remove('hidden');
+    renderAdminContent();
+    return;
+  }
+  content.classList.add('hidden');
+  if (!adminPin) {
+    gate.innerHTML = `<h2>Admin</h2>
+      <div class="status-msg">No admin PIN set yet — set one now to control this page. Anyone with this PIN can edit owners, scores, and player PINs.</div>
+      <div class="login-row" style="margin-top:8px;">
+        <input type="password" id="adminPinSetup" placeholder="Set a 4-digit admin PIN" maxlength="4" style="width:180px;">
+        <button class="btn small" id="adminPinSetupBtn">Set PIN</button>
+      </div>
+      <div class="status-msg" id="adminGateStatus"></div>`;
+    document.getElementById('adminPinSetupBtn').addEventListener('click', async () => {
+      const pin = document.getElementById('adminPinSetup').value.trim();
+      const statusEl = document.getElementById('adminGateStatus');
+      if (!/^\d{4}$/.test(pin)) { statusEl.textContent = 'PIN needs to be 4 digits.'; statusEl.className = 'status-msg err'; return; }
+      adminPin = pin;
+      sessionAdmin = true; renderAdminGate(); // let them in locally right away, don't block on the save
+      const ok = await storageSet('admin-pin', { pin });
+      if (!ok) console.error('admin PIN failed to save after retries — other people on this link will still see the "set a PIN" screen until this succeeds.');
+    });
+  } else {
+    gate.innerHTML = `<h2>Admin</h2>
+      <div class="login-row">
+        <input type="password" id="adminPinEnter" placeholder="Admin PIN" maxlength="4" style="width:140px;">
+        <button class="btn small" id="adminPinEnterBtn">Log in</button>
+      </div>
+      <div class="status-msg" id="adminGateStatus"></div>`;
+    document.getElementById('adminPinEnterBtn').addEventListener('click', () => {
+      const pin = document.getElementById('adminPinEnter').value.trim();
+      const statusEl = document.getElementById('adminGateStatus');
+      if (pin !== adminPin) { statusEl.textContent = 'Wrong PIN.'; statusEl.className = 'status-msg err'; return; }
+      sessionAdmin = true;
+      renderAdminGate();
+    });
+  }
+}
+
+function renderAdminContent() {
+  document.getElementById('adminScoreWeekLabel').textContent = `week ${config.week}`;
+  const names = config.roster || [];
+
+  // Owners as removable chips
+  const chips = document.getElementById('ownerChips');
+  chips.innerHTML = names.length
+    ? names.map(n => `<span class="owner-chip">${n}<span class="x" data-removeowner="${n}" title="Remove ${n}">&times;</span></span>`).join('')
+    : '<span class="status-msg" style="margin:0;">No owners yet — add one below.</span>';
+  chips.querySelectorAll('[data-removeowner]').forEach(x => {
+    x.addEventListener('click', async () => {
+      const name = x.dataset.removeowner;
+      const statusEl = document.getElementById('adminRosterStatus');
+      if (!confirm(`Remove ${name}? This also deletes their picks and scores from every season.`)) return;
+      config.roster = config.roster.filter(o => o !== name);
+      renderAdminContent(); renderLogin(); renderSlots(); renderBoard();
+      const ok = await dbSaveOwners(config.roster, statusEl);
+      if (ok) { statusEl.textContent = `${name} removed.`; statusEl.className = 'status-msg'; await loadConfig(); renderAdminContent(); renderLogin(); }
+    });
+  });
+
+  document.getElementById('adminScoreRows').innerHTML = names.length ? names.map(n => `
+    <div class="score-row" style="margin-top:4px;">
+      <span style="width:150px; display:inline-block;">${n}</span>
+      <input type="number" step="0.1" data-adminscore="${n}" value="${scores[n] ?? ''}" style="width:110px;">
+    </div>`).join('') : '<div class="status-msg">Add owners first.</div>';
+
+  document.getElementById('adminPinRows').innerHTML = names.length ? names.map(n => `
+    <div class="score-row" style="margin-top:4px;">
+      <span style="width:150px; display:inline-block;">${n}</span>
+      <span class="status-msg" style="margin:0; width:110px;">${players[n] ? `PIN set: <span class="pin-reveal">${players[n]}</span>` : 'no PIN'}</span>
+      <input type="text" maxlength="4" placeholder="new PIN" data-adminpin="${n}" style="width:100px;">
+      <button class="btn ghost small" data-setpin="${n}">Set</button>
+    </div>`).join('') : '<div class="status-msg">Add owners first.</div>';
+
+  document.getElementById('adminPinRows').querySelectorAll('[data-setpin]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const name = btn.dataset.setpin;
+      const input = document.querySelector(`[data-adminpin="${name}"]`);
+      const pin = input.value.trim();
+      const statusEl = document.getElementById('adminPinStatus');
+      if (!/^\d{4}$/.test(pin)) { statusEl.textContent = 'PIN needs to be 4 digits.'; statusEl.className = 'status-msg err'; return; }
+      players[name] = pin;
+      const ok = await dbSetPin(name, pin, statusEl);
+      statusEl.textContent = ok ? `PIN set for ${name}.` : statusEl.textContent;
+      if (ok) statusEl.className = 'status-msg';
+      renderAdminContent();
+    });
+  });
+}
+
+async function addOwner() {
+  const input = document.getElementById('newOwnerInput');
+  const statusEl = document.getElementById('adminRosterStatus');
+  const name = input.value.trim();
+  if (!name) return;
+  if ((config.roster || []).some(o => o.toLowerCase() === name.toLowerCase())) {
+    statusEl.textContent = `${name} is already on the list.`; statusEl.className = 'status-msg err'; return;
+  }
+  config.roster = [...(config.roster || []), name];
+  input.value = '';
+  statusEl.textContent = 'Saving…'; statusEl.className = 'status-msg';
+  renderAdminContent(); renderLogin(); renderSlots(); renderBoard();
+  const ok = await dbSaveOwners(config.roster, statusEl);
+  if (ok) { statusEl.textContent = `${name} added.`; statusEl.className = 'status-msg'; await loadConfig(); renderAdminContent(); renderLogin(); }
+}
+document.getElementById('addOwnerBtn').addEventListener('click', addOwner);
+document.getElementById('newOwnerInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') addOwner(); });
+
+document.getElementById('adminSaveScores').addEventListener('click', async () => {
+  const statusEl = document.getElementById('adminScoreStatus');
+  document.querySelectorAll('[data-adminscore]').forEach(input => {
+    const name = input.dataset.adminscore;
+    const val = input.value.trim();
+    if (val !== '') scores[name] = parseFloat(val);
+    else delete scores[name];
+  });
+  statusEl.textContent = 'Saving…'; statusEl.className = 'status-msg';
+  renderScores(); renderSlots(); renderBoard();
+  let allOk = true;
+  for (const n of (config.roster || [])) {
+    if (scores[n] !== undefined && !isNaN(scores[n])) {
+      if (!(await dbSaveScore(CURRENT_YEAR, config.week, n, scores[n], statusEl))) allOk = false;
+    } else {
+      await dbDeleteScore(CURRENT_YEAR, config.week, n);
+    }
+  }
+  if (allOk) { statusEl.textContent = 'Scores saved.'; statusEl.className = 'status-msg'; }
+});
+
+document.getElementById('adminSetWeekOverride').addEventListener('click', async () => {
+  const statusEl = document.getElementById('adminWeekStatus');
+  const n = parseInt(document.getElementById('adminWeekOverride').value);
+  if (!n || n < 1 || n > 22) { statusEl.textContent = 'Enter a week number 1-22.'; statusEl.className = 'status-msg err'; return; }
+  config.weekOverride = n;
+  statusEl.textContent = 'Saving…'; statusEl.className = 'status-msg';
+  renderShell(); await loadWeekData(); renderScores(); renderSlots(); renderParlay(); renderBoard(); renderAdminContent();
+  const ok = await storageSet('week-config', { weekOverride: config.weekOverride }, statusEl);
+  if (ok) { statusEl.textContent = `Week locked to ${n}.`; statusEl.className = 'status-msg'; }
+});
+document.getElementById('adminClearWeekOverride').addEventListener('click', async () => {
+  const statusEl = document.getElementById('adminWeekStatus');
+  config.weekOverride = null;
+  statusEl.textContent = 'Saving…'; statusEl.className = 'status-msg';
+  renderShell(); await loadWeekData(); renderScores(); renderSlots(); renderParlay(); renderBoard(); renderAdminContent();
+  const ok = await storageSet('week-config', { weekOverride: null }, statusEl);
+  if (ok) { statusEl.textContent = 'Back to automatic.'; statusEl.className = 'status-msg'; }
+});
+
+
+
+// ---------- TABS ----------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-board').classList.toggle('hidden', btn.dataset.tab !== 'board');
+    document.getElementById('tab-history').classList.toggle('hidden', btn.dataset.tab !== 'history');
+    document.getElementById('tab-admin').classList.toggle('hidden', btn.dataset.tab !== 'admin');
+    if (btn.dataset.tab === 'history') renderHistory();
+    if (btn.dataset.tab === 'admin') renderAdminGate();
+  });
+});
+
+// ---------- BOARD ----------
+const ODDS_CACHE_MS = 5 * 60 * 1000;   // board odds: reuse for 5 min across ALL viewers
+const PROPS_CACHE_MS = 10 * 60 * 1000; // props: reuse for 10 min per game across ALL viewers
+const SCORES_CACHE_MS = 10 * 60 * 1000;
+
+// The Odds API bills by (markets × regions) per call, not per game returned. We track our own
+// running total rather than relying on the API's x-requests-remaining response header, because
+// browsers hide custom response headers from JS unless the server explicitly opts in via
+// Access-Control-Expose-Headers — which this API does not appear to do, so that header was
+// silently reading as empty the whole time. This estimate only counts real network calls,
+// never cache hits, so it reflects actual spend.
+let creditUsageTotal = null;
+
+async function loadCreditUsage() {
+  const c = await storageGet('credit-usage');
+  creditUsageTotal = c ? c.total : 0;
+  renderCreditStatus();
+}
+
+async function trackCreditUsage(cost, label) {
+  if (creditUsageTotal === null) {
+    const c = await storageGet('credit-usage');
+    creditUsageTotal = c ? c.total : 0;
+  }
+  creditUsageTotal += cost;
+  await storageSet('credit-usage', { total: creditUsageTotal, updatedAt: Date.now() });
+  renderCreditStatus();
+}
+
+function renderCreditStatus() {
+  const el = document.getElementById('creditStatus');
+  if (!el) return;
+  if (creditUsageTotal === null) { el.textContent = ''; return; }
+  el.textContent = `API credits used (this app's running estimate, all viewers combined): ~${creditUsageTotal}`;
+}
+
+async function fetchOdds() {
+  const statusEl = document.getElementById('boardStatus');
+  try {
+    // Check the SHARED cache first — one fetch serves every viewer, not one per browser tab.
+    const cached = await storageGet('odds-cache');
+    const fresh = cached && (Date.now() - cached.fetchedAt < ODDS_CACHE_MS);
+    if (fresh) {
+      games = cached.data;
+      document.getElementById('oddsUpdated').textContent = `updated ${new Date(cached.fetchedAt).toLocaleTimeString()} (shared cache)`;
+      statusEl.style.display = games.length ? 'none' : 'block';
+      renderBoard();
+      return;
+    }
+    const res = await fetch(ODDS_URL);
+    if (!res.ok) throw new Error(`API returned ${res.status}`);
+    games = await res.json();
+    await storageSet('odds-cache', { fetchedAt: Date.now(), data: games });
+    await trackCreditUsage(3, 'board fetch'); // h2h + spreads + totals × 1 region
+    document.getElementById('oddsUpdated').textContent = `updated ${new Date().toLocaleTimeString()}`;
+    statusEl.style.display = games.length ? 'none' : 'block';
+    if (!games.length) statusEl.textContent = 'No NFL games with lines posted right now.';
+    renderBoard();
+  } catch (e) {
+    statusEl.textContent = `Couldn't load odds (${e.message}).`;
+    statusEl.className = 'status-msg err';
+    statusEl.style.display = 'block';
+  }
+}
+
+async function loadProps(gameId) {
+  if (propsCache[gameId] && propsCache[gameId] !== 'error') return propsCache[gameId];
+  const cached = await storageGet(`props-cache:${gameId}`);
+  if (cached && (Date.now() - cached.fetchedAt < PROPS_CACHE_MS)) {
+    propsCache[gameId] = cached.data;
+    return propsCache[gameId];
+  }
+  const url = `https://api.the-odds-api.com/v4/sports/${SPORT}/events/${gameId}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${PROP_MARKETS}&oddsFormat=american&bookmakers=draftkings`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    const dk = (data.bookmakers || [])[0];
+    const marketsData = dk ? dk.markets : [];
+    propsCache[gameId] = marketsData;
+    await storageSet(`props-cache:${gameId}`, { fetchedAt: Date.now(), data: marketsData });
+    await trackCreditUsage(4, 'props fetch'); // 4 prop markets × 1 region
+    return propsCache[gameId];
+  } catch (e) {
+    propsCache[gameId] = 'error';
+    return 'error';
+  }
+}
+
+function applyFilters(weekGames) {
+  return weekGames.filter(g => {
+    if (filterDay !== 'all' && gameDayLabel(g) !== filterDay) return false;
+    if (filterTeam !== 'all' && g.home_team !== filterTeam && g.away_team !== filterTeam) return false;
+    if (filterType !== 'all') {
+      const fp = favoritePrice(g);
+      if (fp === null) return false;
+      if (filterType === 'close' && fp < -175) return false;
+      if (filterType === 'blowout' && fp > -300) return false;
+    }
+    return true;
+  });
+}
+
+function populateFilterOptions(weekGames) {
+  const daySel = document.getElementById('filterDay');
+  const teamSel = document.getElementById('filterTeam');
+  const days = Array.from(new Set(weekGames.map(gameDayLabel)));
+  const teams = Array.from(new Set(weekGames.flatMap(g => [g.home_team, g.away_team]))).sort();
+
+  const dayPrev = filterDay, teamPrev = filterTeam;
+  daySel.innerHTML = '<option value="all">All Days</option>' + days.map(d => `<option value="${d}">${d}</option>`).join('');
+  teamSel.innerHTML = '<option value="all">All Teams</option>' + teams.map(t => `<option value="${t}">${t}</option>`).join('');
+  daySel.value = days.includes(dayPrev) ? dayPrev : 'all';
+  teamSel.value = teams.includes(teamPrev) ? teamPrev : 'all';
+  filterDay = daySel.value;
+  filterTeam = teamSel.value;
+}
+
+['filterDay','filterTeam','filterType'].forEach(id => {
+  document.getElementById(id).addEventListener('change', (e) => {
+    if (id === 'filterDay') filterDay = e.target.value;
+    if (id === 'filterTeam') filterTeam = e.target.value;
+    if (id === 'filterType') filterType = e.target.value;
+    renderBoard();
+  });
+});
+document.getElementById('filterReset').addEventListener('click', () => {
+  filterDay = 'all'; filterTeam = 'all'; filterType = 'all';
+  document.getElementById('filterDay').value = 'all';
+  document.getElementById('filterTeam').value = 'all';
+  document.getElementById('filterType').value = 'all';
+  renderBoard();
+});
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  if (!games.length) return;
+  const wk = currentWeekWindow();
+  const weekGames = games.filter(g => {
+    const t = new Date(g.commence_time);
+    return t >= wk.start && t < wk.end;
+  });
+  populateFilterOptions(weekGames);
+  const filteredGames = applyFilters(weekGames);
+  const statusEl = document.getElementById('boardStatus');
+  if (!weekGames.length) {
+    statusEl.textContent = `No Week ${wk.week} games posted yet — lines usually go up a few days out.`;
+    statusEl.className = 'status-msg';
+    statusEl.style.display = 'block';
+  } else if (!filteredGames.length) {
+    statusEl.textContent = `No games match those filters this week.`;
+    statusEl.className = 'status-msg';
+    statusEl.style.display = 'block';
+  } else {
+    statusEl.style.display = 'none';
+  }
+  const fin = financierName();
+  const iAmFinancier = sessionUser && fin === sessionUser;
+  const takenGameIds = new Set(Object.values(picks).map(p => p.gameId));
+  const myPick = sessionUser ? picks[sessionUser] : null;
+
+  board.innerHTML = filteredGames.map(g => {
+    const dk = (g.bookmakers || []).find(b => b.key === 'draftkings') || g.bookmakers?.[0];
+    if (!dk) return '';
+    const markets = {};
+    (dk.markets || []).forEach(m => markets[m.key] = m.outcomes);
+    const kickoff = new Date(g.commence_time);
+    const kickoffStr = kickoff.toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+
+    function outcomeBtn(marketKey, outcome) {
+      const selId = `${g.id}::${marketKey}::${outcome.name}::${outcome.point ?? ''}`;
+      const desc = `${outcome.name}${outcome.point !== undefined ? (outcome.point > 0 ? ' +' + outcome.point : ' ' + outcome.point) : ''} (${g.away_team} @ ${g.home_team})`;
+      const isMine = myPick && myPick.selId === selId;
+      const disabled = (!sessionUser) || iAmFinancier || (!isMine && (takenGameIds.has(g.id) || myPick));
+      return `<button class="sel-btn ${isMine?'mine':''}" data-selid="${selId}" data-gameid="${g.id}" data-market="${marketKey}"
+        data-selname="${outcome.name}" data-point="${outcome.point ?? ''}" data-home="${g.home_team}" data-away="${g.away_team}"
+        data-desc="${desc.replace(/"/g,'&quot;')}" data-odds="${outcome.price}" ${disabled?'disabled':''}>
+        <span>${outcome.name}${outcome.point !== undefined ? (outcome.point > 0 ? ' +' + outcome.point : ' ' + outcome.point) : ''}</span>
+        <span class="odds">${fmtAm(outcome.price)}</span></button>`;
+    }
+    const h2h = markets.h2h ? markets.h2h.map(o=>outcomeBtn('h2h',o)).join('') : '<div class="status-msg">—</div>';
+    const spreads = markets.spreads ? markets.spreads.map(o=>outcomeBtn('spreads',o)).join('') : '<div class="status-msg">—</div>';
+    const totals = markets.totals ? markets.totals.map(o=>outcomeBtn('totals',o)).join('') : '<div class="status-msg">—</div>';
+
+    const propsLoaded = propsCache[g.id] && propsCache[g.id] !== 'error';
+    let propsHtml = '';
+    if (propsLoaded) {
+      propsHtml = `<div class="props-block">${propsCache[g.id].map(m => `
+        <div class="market-col"><div class="market-label">${m.key.replace('player_','').replace(/_/g,' ')}</div>
+        ${m.outcomes.map(o => {
+          const selId = `${g.id}::${m.key}::${o.description||o.name}::${o.point ?? ''}`;
+          const desc = `${o.description||o.name} ${m.key.replace('player_','').replace(/_/g,' ')} ${o.name}${o.point!==undefined?' '+o.point:''} (${g.away_team} @ ${g.home_team})`;
+          const isMine = myPick && myPick.selId === selId;
+          const disabled = (!sessionUser) || iAmFinancier || (!isMine && (takenGameIds.has(g.id) || myPick));
+          return `<button class="sel-btn ${isMine?'mine':''}" data-selid="${selId}" data-gameid="${g.id}" data-market="${m.key}"
+            data-selname="${o.description||o.name}::${o.name}" data-point="${o.point ?? ''}" data-home="${g.home_team}" data-away="${g.away_team}"
+            data-desc="${desc.replace(/"/g,'&quot;')}" data-odds="${o.price}" ${disabled?'disabled':''}>
+            <span>${o.description||o.name} ${o.name}${o.point!==undefined?' '+o.point:''}</span><span class="odds">${fmtAm(o.price)}</span></button>`;
+        }).join('')}</div>`).join('')}</div>`;
+    } else if (propsCache[g.id] === 'error') {
+      propsHtml = `<div class="status-msg err" style="padding:0 12px 12px;">Props unavailable for this game right now.</div>`;
+    }
+
+    return `<div class="game">
+      <div class="game-head"><span>${kickoffStr}</span><span>${dk.title || 'DraftKings'}</span></div>
+      <div class="game-teams">${g.away_team}<span class="at">@</span>${g.home_team}</div>
+      <div class="markets">
+        <div class="market-col"><div class="market-label">Moneyline</div>${h2h}</div>
+        <div class="market-col"><div class="market-label">Spread</div>${spreads}</div>
+        <div class="market-col"><div class="market-label">Total</div>${totals}</div>
+      </div>
+      <div class="props-toggle">${propsLoaded ? '' : `<span class="link" data-loadprops="${g.id}">${propsCache[g.id]==='error' ? 'retry player props' : 'show player props »'}</span>`}</div>
+      ${propsHtml}
+    </div>`;
+  }).join('');
+
+  board.querySelectorAll('.sel-btn:not(:disabled)').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!sessionUser) return;
+      picks[sessionUser] = {
+        selId: btn.dataset.selid, gameId: btn.dataset.gameid, market: btn.dataset.market,
+        selectionName: btn.dataset.selname, point: btn.dataset.point, home_team: btn.dataset.home,
+        away_team: btn.dataset.away, desc: btn.dataset.desc, odds: Number(btn.dataset.odds)
+      };
+      renderSlots(); renderParlay(); renderBoard(); // reflect it locally right away
+      await dbSavePick(CURRENT_YEAR, config.week, sessionUser, picks[sessionUser]);
+    });
+  });
+  board.querySelectorAll('[data-loadprops]').forEach(el => {
+    el.addEventListener('click', async () => { await loadProps(el.dataset.loadprops); renderBoard(); });
+  });
+}
+
+// ---------- SLOTS / PARLAY ----------
+function renderSlots() {
+  const names = config.roster || [];
+  const fin = financierName();
+  document.getElementById('pickCount').textContent = Object.keys(picks).length;
+  document.getElementById('slotCount').textContent = names.length;
+  const list = document.getElementById('slotList');
+  if (!names.length) { list.innerHTML = '<div class="status-msg">Add your league roster to see slots.</div>'; return; }
+  list.innerHTML = names.map(n => {
+    if (n === fin) return `<div class="slot is-financier"><div class="who">${n}</div><div class="empty-txt">financier this week — no pick</div></div>`;
+    const p = picks[n];
+    if (p) return `<div class="slot filled"><span class="remove-x" data-name="${n}">remove</span><div class="who">${n}</div><div class="pick-desc">${p.desc}</div><div class="pick-odds">${fmtAm(p.odds)}</div></div>`;
+    return `<div class="slot"><div class="who">${n}</div><div class="empty-txt">no pick yet</div></div>`;
+  }).join('');
+  list.querySelectorAll('.remove-x').forEach(x => {
+    x.addEventListener('click', async () => {
+      const removed = x.dataset.name;
+      delete picks[removed];
+      renderSlots(); renderParlay(); renderBoard();
+      await dbDeletePick(CURRENT_YEAR, config.week, removed);
+    });
+  });
+}
+
+function renderParlay() {
+  const entries = Object.entries(picks);
+  const el = document.getElementById('parlaySummary');
+  if (!entries.length) { el.innerHTML = 'No legs yet.'; return; }
+  let combinedDecimal = 1;
+  entries.forEach(([,p]) => combinedDecimal *= americanToDecimal(p.odds));
+  const combinedAmerican = decimalToAmerican(combinedDecimal);
+  el.innerHTML = `<div class="big">${fmtAm(combinedAmerican)}</div>
+    <div>${entries.length} leg${entries.length===1?'':' parlay'} &middot; ${combinedDecimal.toFixed(2)}x decimal</div>
+    <div style="margin-top:8px; color:var(--chalk-dim);">$10 pays out ~$${(10*combinedDecimal-10).toFixed(2)} profit if every leg hits.</div>`;
+}
+
+// ---------- HISTORY ----------
+let histOwnerFilter = 'all';
+let histYearFilter = 'all';
+let expandedOwner = null;
+let lastWeekMeta = [];
+
+async function loadAllHistoryRows() {
+  if (!dbReady) return { rows: [], weekMeta: [] };
+  const apiScores = await fetchApiScores();
+
+  const [picksRes, scoresRes, finRes] = await Promise.all([
+    sb.from('picks').select('*').order('season', { ascending: false }).order('week', { ascending: false }),
+    sb.from('scores').select('*'),
+    sb.from('financiers').select('*')
+  ]);
+  if (picksRes.error) throw picksRes.error;
+
+  const scoreRows = scoresRes.data || [];
+  const finRows = finRes.data || [];
+
+  // financier per (season, week): explicit table entry wins, else lowest reported score
+  const finMap = {};
+  finRows.forEach(r => { finMap[`${r.season}:${r.week}`] = r.owner; });
+  const scoresByWeek = {};
+  scoreRows.forEach(r => {
+    const k = `${r.season}:${r.week}`;
+    (scoresByWeek[k] = scoresByWeek[k] || []).push([r.owner, Number(r.points)]);
+  });
+  Object.entries(scoresByWeek).forEach(([k, entries]) => {
+    if (!finMap[k]) {
+      entries.sort((a, b) => a[1] - b[1]);
+      finMap[k] = entries[0][0];
+    }
+  });
+
+  const rows = (picksRes.data || []).map(r => {
+    const pick = {
+      _name: r.owner, market: r.market, selectionName: r.selection_name, point: r.point,
+      home_team: r.home_team, away_team: r.away_team
+    };
+    // stored grade wins; otherwise try to auto-grade from the live scores feed
+    const grade = r.grade || gradePick(pick, apiScores, {});
+    return {
+      year: r.season, week: r.week, owner: r.owner, desc: r.description,
+      odds: r.odds, market: r.market, point: r.point,
+      home_team: r.home_team, away_team: r.away_team, grade
+    };
+  });
+
+  const weekKeys = new Set([...Object.keys(finMap), ...rows.map(r => `${r.year}:${r.week}`)]);
+  const weekMeta = Array.from(weekKeys).map(k => {
+    const [season, week] = k.split(':').map(Number);
+    return { year: season, week, financier: finMap[k] || null };
+  }).sort((a, b) => a.year - b.year || a.week - b.week);
+
+  rows.sort((a, b) => b.year - a.year || b.week - a.week || a.owner.localeCompare(b.owner));
+  return { rows, weekMeta };
+}
+
+function lineLabel(row) {
+  if (row.odds === undefined || row.odds === null || row.odds === '') return '—';
+  return fmtAm(row.odds);
+}
+
+function populateHistFilters(rows) {
+  const ownerSel = document.getElementById('histOwnerFilter');
+  const yearSel = document.getElementById('histYearFilter');
+  const owners = Array.from(new Set(rows.map(r => r.owner))).sort();
+  const years = Array.from(new Set(rows.map(r => r.year))).sort((a,b)=>b-a);
+  const ownerPrev = histOwnerFilter, yearPrev = histYearFilter;
+  ownerSel.innerHTML = '<option value="all">All Owners</option>' + owners.map(o=>`<option value="${o}">${o}</option>`).join('');
+  yearSel.innerHTML = '<option value="all">All Years</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  ownerSel.value = owners.includes(ownerPrev) ? ownerPrev : 'all';
+  yearSel.value = years.map(String).includes(yearPrev) ? yearPrev : 'all';
+  histOwnerFilter = ownerSel.value;
+  histYearFilter = yearSel.value;
+}
+
+function renderHistChart(rows, weekMeta) {
+  const el = document.getElementById('historyChart');
+  const weeks = weekMeta.filter(w => histYearFilter === 'all' || String(w.year) === histYearFilter);
+  if (!weeks.length) { el.innerHTML = '<div class="status-msg">Nothing to chart yet.</div>'; return; }
+
+  const barW = 26, gap = 10, chartH = 140, colW = barW + gap;
+  const svgW = weeks.length * colW + 20;
+  let bars = '';
+  weeks.forEach((wm, i) => {
+    const x = 10 + i * colW;
+    const weekRows = rows.filter(r => r.year === wm.year && r.week === wm.week && (histOwnerFilter === 'all' || r.owner === histOwnerFilter));
+    if (histOwnerFilter !== 'all') {
+      // single-owner mode: one block colored by that owner's result that week (or nothing if they were financier)
+      const r = weekRows[0];
+      const colorMap = { hit: 'var(--hit)', miss: 'var(--miss)', push: 'var(--push)', void: 'var(--chalk-dim)', ass_clown: '#7a3b3b', pending: 'var(--line)' };
+      const isFin = wm.financier === histOwnerFilter;
+      if (isFin) {
+        bars += `<rect x="${x}" y="${chartH-18}" width="${barW}" height="18" fill="none" stroke="var(--gold-dim)" stroke-dasharray="3,2"/>`;
+      } else if (r) {
+        bars += `<rect x="${x}" y="${chartH-40}" width="${barW}" height="40" fill="${colorMap[r.grade]||'var(--line)'}" rx="2"/>`;
+      }
+    } else {
+      const counts = { hit:0, miss:0, void:0, ass_clown:0, push:0, pending:0 };
+      weekRows.forEach(r => { counts[r.grade] = (counts[r.grade]||0) + 1; });
+      const order = [['hit','var(--hit)'],['miss','var(--miss)'],['push','var(--push)'],['void','var(--chalk-dim)'],['ass_clown','#7a3b3b'],['pending','var(--line)']];
+      const total = Object.values(counts).reduce((a,b)=>a+b,0) || 1;
+      let yCursor = chartH - 4;
+      order.forEach(([key,color]) => {
+        const h = (counts[key]/total) * (chartH - 24);
+        if (h > 0) {
+          yCursor -= h;
+          bars += `<rect x="${x}" y="${yCursor}" width="${barW}" height="${h}" fill="${color}"/>`;
+        }
+      });
+    }
+    bars += `<text x="${x+barW/2}" y="${chartH+14}" text-anchor="middle" class="bar-chip">${wm.week}</text>`;
+    // when several seasons are on screen, mark where each one starts
+    if (i === 0 || weeks[i-1].year !== wm.year) {
+      bars += `<text x="${x}" y="10" text-anchor="start" class="bar-chip" style="fill:var(--gold);">${wm.year}</text>`;
+    }
+  });
+  el.innerHTML = `<svg viewBox="0 0 ${svgW} ${chartH+24}" width="${svgW}" height="${chartH+24}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`
+    + `<div class="status-msg" style="margin-top:2px;">Week number along the bottom.</div>`;
+}
+
+function renderOwnerTable(rows, weekMeta) {
+  lastWeekMeta = weekMeta || lastWeekMeta || [];
+  const owners = Array.from(new Set(rows.map(r => r.owner))).filter(o => histOwnerFilter === 'all' || o === histOwnerFilter).sort();
+  const tbody = document.getElementById('ownerTableBody');
+  if (!owners.length) { tbody.innerHTML = '<tr><td colspan="7" class="status-msg">No bets recorded yet.</td></tr>'; return; }
+
+  // How many weeks each owner had to foot the bill, respecting the year filter.
+  const finCounts = {};
+  lastWeekMeta
+    .filter(w => histYearFilter === 'all' || String(w.year) === histYearFilter)
+    .forEach(w => { if (w.financier) finCounts[w.financier] = (finCounts[w.financier] || 0) + 1; });
+
+  tbody.innerHTML = owners.map(owner => {
+    const oRows = rows.filter(r => r.owner === owner);
+    const hit = oRows.filter(r=>r.grade==='hit').length;
+    const miss = oRows.filter(r=>r.grade==='miss').length;
+    const voidCt = oRows.filter(r=>r.grade==='void').length;
+    const ac = oRows.filter(r=>r.grade==='ass_clown').length;
+    const decided = hit + miss;
+    const winPct = decided ? Math.round((hit/decided)*100) + '%' : '—';
+    const finWeeks = finCounts[owner] || 0;
+    const isOpen = expandedOwner === owner;
+    const detail = isOpen ? `<tr class="owner-detail-row"><td colspan="7"><div class="owner-detail">
+      <table class="bets-table"><thead><tr><th>Year</th><th>Week</th><th>Wager</th><th>Line</th><th>Result</th></tr></thead><tbody>
+      ${oRows.map(r => `<tr><td>${r.year}</td><td>${r.week}</td><td>${r.desc || '(no wager)'}</td><td style="color:var(--gold);">${lineLabel(r)}</td><td><span class="grade-badge ${r.grade}">${r.grade.replace('_',' ')}</span></td></tr>`).join('')}
+      </tbody></table>
+    </div></td></tr>` : '';
+    return `<tr class="owner-row" data-owner="${owner}"><td>${owner}</td><td>${hit}</td><td>${miss}</td><td>${voidCt}</td><td>${ac}</td><td class="win-pct">${winPct}</td><td>${finWeeks}</td></tr>${detail}`;
+  }).join('');
+
+  tbody.querySelectorAll('.owner-row').forEach(tr => {
+    tr.addEventListener('click', () => {
+      expandedOwner = expandedOwner === tr.dataset.owner ? null : tr.dataset.owner;
+      renderOwnerTable(rows);
+    });
+  });
+}
+
+function renderAllBetsTable(rows) {
+  const tbody = document.getElementById('allBetsBody');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="status-msg">No bets recorded yet.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td>${r.year}</td><td>${r.week}</td><td>${r.owner}</td><td>${r.desc || '(financier — no wager)'}</td><td>${lineLabel(r)}</td>
+    <td>
+      <span class="grade-badge ${r.grade}">${r.grade.replace('_',' ')}</span>
+      ${r.grade === 'pending' ? `<span class="manual-grade" data-year="${r.year}" data-week="${r.week}" data-owner="${r.owner}" style="margin-top:4px;">
+        <button class="btn ghost small" data-set="hit">H</button>
+        <button class="btn ghost small" data-set="miss">M</button>
+        <button class="btn ghost small" data-set="void">V</button>
+        <button class="btn ghost small" data-set="ass_clown">A</button>
+      </span>` : ''}
+    </td>
+  </tr>`).join('');
+
+  tbody.querySelectorAll('.manual-grade button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const wrap = btn.closest('.manual-grade');
+      const year = wrap.dataset.year, week = wrap.dataset.week, owner = wrap.dataset.owner;
+      await dbSetGrade(Number(year), Number(week), owner, btn.dataset.set);
+      renderHistory();
+    });
+  });
+}
+
+function renderAggressiveness(rows) {
+  const el = document.getElementById('aggressivenessTable');
+  const withOdds = rows.filter(r => typeof r.odds === 'number' && !isNaN(r.odds));
+  if (!withOdds.length) { el.innerHTML = '<div class="status-msg">No picks with a recorded line yet — this fills in once the 2026 season starts and legs get logged with odds.</div>'; return; }
+  const byOwner = {};
+  withOdds.forEach(r => { (byOwner[r.owner] = byOwner[r.owner] || []).push(r.odds); });
+  const table = Object.entries(byOwner).map(([owner, oddsList]) => {
+    const decimals = oddsList.map(americanToDecimal);
+    const avgDecimal = decimals.reduce((a,b)=>a+b,0) / decimals.length;
+    return { owner, avgAmerican: decimalToAmerican(avgDecimal), n: oddsList.length, avgDecimal };
+  }).sort((a,b) => b.avgDecimal - a.avgDecimal);
+  el.innerHTML = `<table class="owner-table"><thead><tr><th>Owner</th><th>Avg Line</th><th>Legs</th></tr></thead><tbody>
+    ${table.map((t,i) => `<tr><td>${i===0?'🔥 ':''}${t.owner}${i===table.length-1?' (safest)':''}</td><td class="win-pct">${fmtAm(t.avgAmerican)}</td><td>${t.n}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+async function renderHistory() {
+  const statusEl = document.getElementById('historyStatus');
+  statusEl.textContent = 'Loading history…';
+  statusEl.className = 'status-msg';
+  let allRows = [], weekMeta = [];
+  try {
+    const result = await loadAllHistoryRows();
+    allRows = result.rows; weekMeta = result.weekMeta;
+  } catch (e) {
+    console.error('loadAllHistoryRows failed', e);
+    statusEl.textContent = `Couldn't load history (${e.message || e}). Check the browser console for details.`;
+    statusEl.className = 'status-msg err';
+    return;
+  }
+  if (!allRows.length) {
+    statusEl.textContent = 'No weeks recorded yet — this fills in as picks and scores come in, or on first load of a fresh import.';
+    return;
+  }
+  statusEl.textContent = '';
+
+  populateHistFilters(allRows);
+  const rows = allRows.filter(r =>
+    (histOwnerFilter === 'all' || r.owner === histOwnerFilter) &&
+    (histYearFilter === 'all' || String(r.year) === histYearFilter)
+  );
+
+  renderHistChart(allRows, weekMeta);
+  renderOwnerTable(rows, weekMeta);
+  renderAllBetsTable(rows);
+  renderAggressiveness(rows);
+}
+
+document.getElementById('histOwnerFilter').addEventListener('change', (e) => { histOwnerFilter = e.target.value; renderHistory(); });
+document.getElementById('histYearFilter').addEventListener('change', (e) => { histYearFilter = e.target.value; renderHistory(); });
+
+async function fetchApiScores() {
+  if (apiScoresCache) return apiScoresCache;
+  const cached = await storageGet('scores-api-cache');
+  if (cached && (Date.now() - cached.fetchedAt < SCORES_CACHE_MS)) {
+    apiScoresCache = cached.data;
+    return apiScoresCache;
+  }
+  try {
+    const res = await fetch(SCORES_URL);
+    if (!res.ok) throw new Error(res.status);
+    apiScoresCache = await res.json();
+    await storageSet('scores-api-cache', { fetchedAt: Date.now(), data: apiScoresCache });
+    await trackCreditUsage(1, 'scores fetch'); // estimate — the-odds-api docs don't spell out a scores-endpoint multiplier
+  } catch (e) { apiScoresCache = []; }
+  return apiScoresCache;
+}
+
+function findCompletedGame(apiScores, home, away) {
+  return apiScores.find(g => g.completed && g.home_team === home && g.away_team === away);
+}
+
+function gradePick(pick, apiScores, weekManualGrades) {
+  const manual = weekManualGrades[pick._name];
+  if (manual) return manual;
+  const g = findCompletedGame(apiScores, pick.home_team, pick.away_team);
+  if (!g || !g.scores) return 'pending';
+  const homeScore = Number(g.scores.find(s=>s.name===g.home_team)?.score);
+  const awayScore = Number(g.scores.find(s=>s.name===g.away_team)?.score);
+  if (isNaN(homeScore) || isNaN(awayScore)) return 'pending';
+  if (pick.market === 'h2h') {
+    if (homeScore === awayScore) return 'push';
+    const winner = homeScore > awayScore ? g.home_team : g.away_team;
+    return pick.selectionName === winner ? 'hit' : 'miss';
+  }
+  if (pick.market === 'spreads') {
+    const point = parseFloat(pick.point);
+    const selScore = pick.selectionName === g.home_team ? homeScore : awayScore;
+    const oppScore = pick.selectionName === g.home_team ? awayScore : homeScore;
+    const margin = (selScore + point) - oppScore;
+    if (margin === 0) return 'push';
+    return margin > 0 ? 'hit' : 'miss';
+  }
+  if (pick.market === 'totals') {
+    const point = parseFloat(pick.point);
+    const total = homeScore + awayScore;
+    if (total === point) return 'push';
+    if (pick.selectionName === 'Over') return total > point ? 'hit' : 'miss';
+    if (pick.selectionName === 'Under') return total < point ? 'hit' : 'miss';
+  }
+  return 'pending'; // props not auto-graded (no player stat feed) — manual only
+}
+
+// ---------- REALTIME ----------
+function subscribeRealtime() {
+  if (!dbReady) return;
+  try {
+    sb.channel('board-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'picks' }, async () => {
+        await loadWeekData(); renderSlots(); renderParlay(); renderBoard();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scores' }, async () => {
+        await loadWeekData(); renderScores(); renderSlots(); renderBoard();
+      })
+      .subscribe();
+  } catch (e) { console.error('realtime subscribe failed (polling still active)', e); }
+}
+
+// ---------- INIT ----------
+async function init() {
+  const connected = initSupabase();
+  if (!connected) {
+    document.getElementById('setupPanel').classList.remove('hidden');
+    if (dbError === 'not-configured') {
+      showDbBanner('Not connected to a database yet — follow the one-time setup below. Nothing will save until this is done.', true);
+    } else {
+      showDbBanner(`Couldn't connect to Supabase: ${dbError}. Check your URL and anon key.`, true);
+    }
+    return; // don't run the rest — it would just render empty and confuse people
+  }
+
+  // verify the schema is actually there before pretending things work
+  try {
+    const { error } = await sb.from('owners').select('name').limit(1);
+    if (error) throw error;
+  } catch (e) {
+    document.getElementById('setupPanel').classList.remove('hidden');
+    showDbBanner(`Connected to Supabase, but couldn't read the tables (${e.message || e}). Did you run schema.sql yet?`, true);
+    return;
+  }
+  showDbBanner('', false);
+
+  const wk = currentWeekWindow();
+  config.week = wk.week;
+  const oddsPromise = fetchOdds();
+  await Promise.all([loadConfig(), loadAdminPin(), loadCreditUsage()]);
+  config.week = currentWeekWindow().week;
+  await loadWeekData();
+  renderShell();
+  renderLogin();
+  renderScores();
+  renderSlots();
+  renderParlay();
+  await oddsPromise;
+  renderBoard();
+
+  subscribeRealtime();
+
+  // polling backstop in case the realtime socket drops
+  setInterval(async () => {
+    if (!sessionAdmin) await loadConfig();
+    const w = currentWeekWindow();
+    if (w.week !== config.week) config.week = w.week;
+    await loadWeekData();
+    renderShell(); renderSlots(); renderParlay(); renderBoard(); renderScores();
+    const loginArea = document.getElementById('loginArea');
+    if (!loginArea.contains(document.activeElement)) renderLogin();
+  }, 15000);
+  setInterval(fetchOdds, 5 * 60 * 1000);
+}
+init();
+</script>
+</body>
+</html>
