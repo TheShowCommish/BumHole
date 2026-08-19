@@ -167,9 +167,10 @@
       <li>In your project, open <strong>SQL Editor &rarr; New query</strong>, paste in the whole <code>schema.sql</code> file that came with this app, and hit Run. That builds the tables and loads your 2025 season.</li>
       <li>Go to <strong>Project Settings &rarr; API</strong> and copy the <strong>Project URL</strong> and the <strong>publishable</strong> (client-safe) key.</li>
       <li>Open this HTML file in a text editor. Near the top of the <code>&lt;script&gt;</code> block, paste them into <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code>.</li>
+      <li>Deploy the <code>odds</code> edge function and set your The Odds API key as a secret on it &mdash; <code>README.md</code> has the two commands. The key stays on the server; this page never sees it.</li>
       <li>Save, reload, and you're live. Host the file anywhere static (Netlify, Vercel, GitHub Pages, Cloudflare Pages) and share that URL with the league.</li>
     </ol>
-    <p style="font-size:12px; color:var(--chalk-dim); line-height:1.6;">Worth knowing before you make the page public: the publishable key and the odds-API key both sit in the page source where anyone can read them, and the database policies in <code>schema.sql</code> let anyone with the URL read and write. That's fine for a private link among friends. The bottom of <code>schema.sql</code> spells out how to tighten it if you ever want the page truly public.</p>
+    <p style="font-size:12px; color:var(--chalk-dim); line-height:1.6;">Worth knowing before you make the page public: the publishable key sits in the page source where anyone can read them &mdash; that one is designed to be public. The odds-API key does not, it lives as a Supabase secret. But the database policies in <code>schema.sql</code> let anyone with the URL read and write, and anyone with the page can spend odds-API credits through the function. That's fine for a private link among friends. The bottom of <code>schema.sql</code> spells out how to tighten it if you ever want the page truly public.</p>
   </div>
 
   <div class="tabs">
@@ -317,12 +318,21 @@
 const SUPABASE_URL = "https://joqypzsibdjhewvhdjfx.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Lbpcc0izGF5-PIo0ePaArQ_ZLljw3EU";
 
-// Paste your The Odds API key here (kept out of git on purpose):
-const ODDS_API_KEY = "";
+// The Odds API key is NOT here on purpose. It lives as a secret on the
+// Supabase project and is used by the `odds` edge function; the browser only
+// ever talks to that function. See README.md to set it up.
 const SPORT = "americanfootball_nfl";
-const ODDS_URL = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h,spreads,totals&oddsFormat=american&bookmakers=draftkings`;
-const SCORES_URL = `https://api.the-odds-api.com/v4/sports/${SPORT}/scores/?apiKey=${ODDS_API_KEY}&daysFrom=3`;
-const PROP_MARKETS = "player_pass_tds,player_rush_yds,player_reception_yds,player_anytime_td";
+
+// Calls the odds edge function. `endpoint` is one of odds | scores | props.
+async function oddsApi(endpoint, eventId) {
+  if (!sb) throw new Error('not connected to Supabase');
+  const { data, error } = await sb.functions.invoke('odds', {
+    body: eventId ? { endpoint, eventId } : { endpoint }
+  });
+  if (error) throw new Error(error.message || 'odds function failed');
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
 const CURRENT_YEAR = 2026;
 
 // 2026 NFL regular season opens Wednesday Sept 9, 2026 — weeks run Wed-Tue this season.
@@ -908,9 +918,7 @@ async function fetchOdds() {
       renderBoard();
       return;
     }
-    const res = await fetch(ODDS_URL);
-    if (!res.ok) throw new Error(`API returned ${res.status}`);
-    games = await res.json();
+    games = await oddsApi('odds');
     await storageSet('odds-cache', { fetchedAt: Date.now(), data: games });
     await trackCreditUsage(3, 'board fetch'); // h2h + spreads + totals × 1 region
     document.getElementById('oddsUpdated').textContent = `updated ${new Date().toLocaleTimeString()}`;
@@ -931,11 +939,8 @@ async function loadProps(gameId) {
     propsCache[gameId] = cached.data;
     return propsCache[gameId];
   }
-  const url = `https://api.the-odds-api.com/v4/sports/${SPORT}/events/${gameId}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=${PROP_MARKETS}&oddsFormat=american&bookmakers=draftkings`;
   try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${res.status}`);
-    const data = await res.json();
+    const data = await oddsApi('props', gameId);
     const dk = (data.bookmakers || [])[0];
     const marketsData = dk ? dk.markets : [];
     propsCache[gameId] = marketsData;
@@ -1374,9 +1379,7 @@ async function fetchApiScores() {
     return apiScoresCache;
   }
   try {
-    const res = await fetch(SCORES_URL);
-    if (!res.ok) throw new Error(res.status);
-    apiScoresCache = await res.json();
+    apiScoresCache = await oddsApi('scores');
     await storageSet('scores-api-cache', { fetchedAt: Date.now(), data: apiScoresCache });
     await trackCreditUsage(1, 'scores fetch'); // estimate — the-odds-api docs don't spell out a scores-endpoint multiplier
   } catch (e) { apiScoresCache = []; }
