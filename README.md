@@ -20,7 +20,7 @@ npx supabase login
 ```
 
 ```bash
-npx supabase link --project-ref joqypzsibdjhewvhdjfx
+npx supabase link --project-ref pivwbrmbpyoaqvejvgad
 ```
 
 Store the key as a secret — this is the step that matters:
