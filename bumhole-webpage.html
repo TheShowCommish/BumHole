@@ -3,16 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Financier's Board</title>
+<title>Fantasy Ultimate Bumhole</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Alfa+Slab+One&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0b0f0d; --bg-panel: #121712; --bg-panel-raised: #182018;
-    --line: #263329; --field: #1f4d3a; --field-bright: #2d6a4f;
+    --bg: #0a0d09; --bg-panel: #10150f; --bg-panel-raised: #171e15;
+    --line: #2a3627; --field: #1f4d3a; --field-bright: #2d6a4f;
     --gold: #d4a72c; --gold-dim: #8a7126; --chalk: #edf1ec; --chalk-dim: #8fa093;
     --miss: #b25454; --hit: #4fa172; --push: #b8942f;
+    /* pigskin */
+    --leather: #7a4526; --leather-dark: #482814; --leather-light: #a3623a;
+    --lace: #f2ece0;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--chalk); font-family: 'Work Sans', sans-serif; min-height: 100vh; }
@@ -145,16 +148,214 @@
   .db-banner.err { background: #2a1212; border-color: var(--miss); border-left-color: var(--miss); }
   .setup-panel code { background: var(--bg-panel-raised); padding: 2px 6px; border-radius: 3px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
   .setup-panel ol { line-height: 1.9; padding-left: 20px; }
+
+  /* ============================================================
+     GRIDIRON — the football dressing. Everything above is the
+     structural layout; this block is what makes it look like a
+     field instead of a spreadsheet.
+     ============================================================ */
+
+  /* Turf: faint yard stripes running down the page, with a
+     vignette so the middle reads brighter than the sidelines. */
+  body {
+    background-color: var(--bg);
+    background-image:
+      repeating-linear-gradient(90deg,
+        rgba(255,255,255,0.018) 0 2px,
+        transparent 2px 84px),
+      repeating-linear-gradient(0deg,
+        rgba(45,106,79,0.055) 0 60px,
+        rgba(31,77,58,0.055) 60px 120px),
+      radial-gradient(ellipse 900px 600px at 50% 0%, rgba(45,106,79,0.16), transparent 70%);
+    background-attachment: fixed;
+  }
+
+  /* ---- credit meter, pinned top-left ---- */
+  .credit-badge {
+    position: fixed; top: 0; left: 0; z-index: 40;
+    display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(180deg, var(--leather), var(--leather-dark));
+    border: 1px solid rgba(0,0,0,0.5); border-top: none; border-left: none;
+    border-bottom-right-radius: 10px;
+    padding: 7px 14px 7px 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.55);
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--lace);
+    cursor: help; max-width: min(92vw, 380px);
+  }
+  .credit-badge .cb-ball { font-size: 15px; line-height: 1; }
+  .credit-badge .cb-label { text-transform: uppercase; letter-spacing: 1.2px; font-size: 9px; color: rgba(242,236,224,0.65); display: block; line-height: 1.3; }
+  .credit-badge .cb-num { font-size: 15px; font-weight: 600; color: #ffd970; line-height: 1.1; }
+  .credit-badge .cb-note { font-size: 9px; color: rgba(242,236,224,0.5); line-height: 1.2; }
+  @media (max-width: 620px) {
+    .credit-badge { font-size: 11px; padding: 5px 10px; }
+    .credit-badge .cb-note { display: none; }
+  }
+  /* keep the badge from sitting on top of the logo */
+  .wrap { padding-top: 48px; }
+
+  /* ---- header / logo ---- */
+  header.top {
+    border-bottom: none;
+    padding-bottom: 16px; margin-bottom: 16px;
+    align-items: center; justify-content: center; text-align: center;
+    position: relative;
+  }
+  /* sideline: a chalk stripe under the header, the way a field edge reads */
+  header.top::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+    background:
+      linear-gradient(180deg, var(--chalk) 0 2px, transparent 2px),
+      repeating-linear-gradient(90deg, var(--field-bright) 0 22px, var(--field) 22px 44px);
+    border-radius: 2px; opacity: 0.85;
+  }
+  .brand { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+  .brand img.logo { display: block; width: 100%; max-width: 470px; height: auto; filter: drop-shadow(0 6px 16px rgba(0,0,0,0.6)); }
+  /* Fallback wordmark — shown only if logo.png isn't sitting next to this file. */
+  .brand .logo-fallback {
+    display: none;
+    font-family: 'Alfa Slab One', 'Teko', serif; font-size: clamp(24px, 5.5vw, 42px);
+    line-height: 1.1; letter-spacing: 0.5px; text-transform: uppercase; text-align: center;
+    color: var(--lace); padding: 26px 40px; border-radius: 50% / 34%;
+    background: radial-gradient(ellipse at 50% 32%, var(--leather-light), var(--leather) 55%, var(--leather-dark));
+    border: 3px solid rgba(0,0,0,0.45);
+    text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 0 22px rgba(0,0,0,0.4);
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.45), 0 6px 18px rgba(0,0,0,0.6);
+  }
+  .brand .logo-fallback em { font-style: normal; color: #ffd970; }
+  .brand.no-logo img.logo { display: none; }
+  .brand.no-logo .logo-fallback { display: block; }
+  .subtitle { text-align: center; }
+  .week-pill {
+    font-family: 'Teko', sans-serif; font-size: 18px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--chalk); background: linear-gradient(180deg, #1d2a1d, #101710);
+    border: 1px solid var(--field-bright); border-radius: 999px; padding: 3px 18px;
+  }
+
+  /* ---- tabs as a scoreboard strip ---- */
+  .tabs {
+    background: linear-gradient(180deg, #141a13, #0d110c);
+    border: 1px solid var(--line); border-radius: 6px 6px 0 0;
+    border-bottom: 3px solid var(--field-bright);
+    padding: 0 4px; gap: 0;
+  }
+  .tab-btn { border-bottom-width: 4px; transition: color 0.12s, background 0.12s; }
+  .tab-btn:hover { color: var(--chalk); background: rgba(45,106,79,0.12); }
+  .tab-btn.active { background: rgba(212,167,44,0.08); }
+
+  /* ---- panels: chalk-lined field boxes ---- */
+  .panel {
+    background:
+      linear-gradient(180deg, rgba(45,106,79,0.06), transparent 120px),
+      var(--bg-panel);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 6px 18px rgba(0,0,0,0.28);
+  }
+  /* space-between used to spread every stray text node in the heading apart —
+     the reason "Picks ( 0 / 12 )" had gaps inside its parentheses. Pack the
+     items left and push the .sub note over with an auto margin instead. */
+  .panel h2 { color: var(--chalk); border-bottom: 2px solid var(--field-bright); justify-content: flex-start; }
+  .panel h2 .sub { margin-left: auto; padding-left: 14px; text-align: right; }
+  /* hash marks in front of every panel heading */
+  .panel h2::before {
+    content: ''; display: inline-block; width: 3px; height: 15px; margin-right: 9px;
+    vertical-align: -2px; background: var(--gold); border-radius: 1px; flex: none;
+    box-shadow: 6px 0 0 -1px var(--gold-dim), 12px 0 0 -1px var(--gold-dim);
+  }
+
+  /* ---- financier bar: the "on the hook" plaque ---- */
+  .financier-bar {
+    background: linear-gradient(90deg, var(--leather-dark), #17120a 70%);
+    border-color: rgba(0,0,0,0.5); border-left: 5px solid var(--gold);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+
+  /* ---- game cards: pigskin scoreboard head over a field body ---- */
+  .game {
+    border-radius: 6px; background: var(--bg-panel);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  }
+  .game-head {
+    background: linear-gradient(180deg, var(--leather), var(--leather-dark));
+    color: rgba(242,236,224,0.9); border-bottom: 1px solid rgba(0,0,0,0.45);
+    letter-spacing: 0.5px;
+  }
+  .game-teams {
+    background: linear-gradient(180deg, rgba(45,106,79,0.14), transparent);
+    padding: 12px 14px 8px; font-size: 24px;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+  }
+  .game-teams .at {
+    color: var(--lace); font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    background: var(--leather); border-radius: 999px; padding: 3px 8px; margin: 0 10px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .market-col .market-label {
+    color: var(--gold-dim); border-bottom: 1px dashed var(--line); padding-bottom: 3px;
+  }
+  .sel-btn { transition: border-color 0.1s, background 0.1s, transform 0.05s; }
+  .sel-btn:hover:not(:disabled) { background: #1b2a20; transform: translateX(1px); }
+  .sel-btn.mine {
+    border-color: var(--gold); background: linear-gradient(90deg, #22301f, #16281f);
+    box-shadow: 0 0 0 1px rgba(212,167,44,0.25);
+  }
+
+  /* ---- player-prop filter ---- */
+  .prop-filter { border: 1px solid var(--line); border-radius: 5px; background: var(--bg-panel-raised); margin: 10px 0; overflow: hidden; }
+  .prop-filter-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 9px 12px; cursor: pointer; background: linear-gradient(180deg, rgba(122,69,38,0.28), transparent);
+  }
+  .prop-filter-head .pf-title { font-family: 'Teko', sans-serif; font-size: 18px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--chalk); }
+  .prop-filter-head .pf-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--gold); }
+  .prop-filter-head .pf-caret { margin-left: auto; color: var(--chalk-dim); font-size: 11px; }
+  .prop-filter-body { padding: 4px 12px 12px; border-top: 1px solid var(--line); }
+  .prop-group { margin-top: 10px; }
+  .prop-group .pg-name {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--gold-dim); margin-bottom: 5px;
+  }
+  .prop-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .prop-chip {
+    font-size: 12px; padding: 4px 11px; border-radius: 999px; cursor: pointer;
+    background: var(--bg-panel); border: 1px solid var(--line); color: var(--chalk-dim);
+    user-select: none; transition: all 0.1s;
+  }
+  .prop-chip:hover { border-color: var(--field-bright); color: var(--chalk); }
+  .prop-chip.on { background: linear-gradient(180deg, var(--field-bright), var(--field)); border-color: var(--gold-dim); color: var(--chalk); font-weight: 600; }
+  .prop-chip.maxed { opacity: 0.32; cursor: not-allowed; }
+  .prop-filter-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .prop-cost { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--chalk-dim); margin-left: auto; }
+  .prop-cost b { color: var(--gold); }
+
+  .props-block { border-top: 1px dashed var(--line); padding: 10px 0 12px; margin: 0 12px; }
+  .props-toggle .link { color: var(--gold-dim); }
+  .props-toggle .link:hover { color: var(--gold); }
+  .props-empty { font-size: 11px; color: var(--chalk-dim); padding: 0 12px 10px; font-style: italic; }
+
+  /* ---- footer: goal-post rule ---- */
+  footer.note { border-top: 2px solid var(--line); padding-top: 16px; }
 </style>
 </head>
 <body>
+<div class="credit-badge" id="creditBadge" title="Running estimate of The Odds API credits this app has spent, across everyone who has the page open.">
+  <span class="cb-ball">🏈</span>
+  <span>
+    <span class="cb-label">API credits used</span>
+    <span class="cb-num" id="creditNum">—</span>
+    <span class="cb-note">est. · all viewers</span>
+  </span>
+</div>
 <div class="wrap">
   <header class="top">
-    <div>
-      <h1>THE <span>FINANCIER'S</span> BOARD</h1>
+    <div class="brand">
+      <!-- Drop the league logo in next to this file as logo.png. If it isn't
+           there, the styled wordmark below takes over so the header never
+           renders as a broken image. -->
+      <img class="logo" id="brandLogo" src="logo.png" alt="Fantasy Ultimate Bumhole"
+           onerror="this.closest('.brand').classList.add('no-logo');">
+      <div class="logo-fallback">Fantasy <em>Ultimate</em> Bumhole</div>
       <div class="subtitle">One leg each. Lowest score pays.</div>
+      <div class="week-pill" id="weekPill">Week —</div>
     </div>
-    <div class="week-pill" id="weekPill">Week —</div>
   </header>
 
   <div class="db-banner" id="dbBanner" style="display:none;"></div>
@@ -196,8 +397,7 @@
 
         <div class="panel">
           <h2>NFL Board <span class="sub" id="oddsUpdated"></span></h2>
-          <div class="status-msg" id="creditStatus"></div>
-          <div class="status-msg" style="font-style:italic;">Estimate based on The Odds API's documented per-call cost — not pulled live from their billing, since browsers can't read that response header for this API.</div>
+          <div class="status-msg" style="font-style:italic;">Credit count in the top-left corner is an estimate based on The Odds API's documented per-call cost — not pulled live from their billing, since browsers can't read that response header for this API.</div>
           <div class="filters" style="display:flex; gap:8px; flex-wrap:wrap; margin:10px 0;">
             <select id="filterDay"><option value="all">All Days</option></select>
             <select id="filterTeam"><option value="all">All Teams</option></select>
@@ -208,6 +408,23 @@
             </select>
             <button class="btn ghost small" id="filterReset">Reset filters</button>
           </div>
+          <div class="prop-filter" id="propFilter">
+            <div class="prop-filter-head" id="propFilterHead">
+              <span class="pf-title">Player Props</span>
+              <span class="pf-count" id="propFilterCount"></span>
+              <span class="pf-caret" id="propFilterCaret">show »</span>
+            </div>
+            <div class="prop-filter-body hidden" id="propFilterBody">
+              <div class="status-msg" style="margin-top:8px;">Pick which prop markets the board pulls. Each market costs one API credit per game you open props on, so keep the list to what you'll actually bet.</div>
+              <div id="propGroups"></div>
+              <div class="prop-filter-actions">
+                <button class="btn ghost small" id="propPresetTd">Touchdowns only</button>
+                <button class="btn ghost small" id="propPresetSkill">Skill-position basics</button>
+                <button class="btn ghost small" id="propPresetClear">Clear all</button>
+                <span class="prop-cost" id="propCost"></span>
+              </div>
+            </div>
+          </div>
           <div id="boardStatus" class="status-msg">Loading odds…</div>
           <div id="board"></div>
         </div>
@@ -215,7 +432,7 @@
 
       <div>
         <div class="panel">
-          <h2>Picks (<span id="pickCount">0</span>/<span id="slotCount">0</span>)</h2>
+          <h2><span>Picks (<span id="pickCount">0</span>/<span id="slotCount">0</span>)</span></h2>
           <div class="slot-list" id="slotList"></div>
         </div>
         <div class="panel">
@@ -324,11 +541,14 @@ const SUPABASE_ANON_KEY = "sb_publishable_veA7T5M__qvCZrsszof5Ew_rrrJEeqJ";
 const SPORT = "americanfootball_nfl";
 
 // Calls the odds edge function. `endpoint` is one of odds | scores | props.
-async function oddsApi(endpoint, eventId) {
+// `markets` only applies to props — a comma list the function validates against
+// its own allowlist before spending credits on it.
+async function oddsApi(endpoint, eventId, markets) {
   if (!sb) throw new Error('not connected to Supabase');
-  const { data, error } = await sb.functions.invoke('odds', {
-    body: eventId ? { endpoint, eventId } : { endpoint }
-  });
+  const body = { endpoint };
+  if (eventId) body.eventId = eventId;
+  if (markets) body.markets = markets;
+  const { data, error } = await sb.functions.invoke('odds', { body });
   if (error) throw new Error(error.message || 'odds function failed');
   if (data && data.error) throw new Error(data.error);
   return data;
@@ -358,13 +578,85 @@ function currentWeekWindow() {
   return { ...auto, manual: false };
 }
 
+// ---------- PLAYER PROP MARKETS ----------
+// The Odds API posts far more than the four markets this board used to ask
+// for. Cost is what keeps the list short: the event-odds endpoint bills one
+// credit per market per game, so twelve markets across ten games is 120
+// credits for a single refresh. The board therefore fetches only the markets
+// selected here, and MAX_PROP_MARKETS is a hard ceiling (the edge function
+// enforces the same number server-side).
+const PROP_MARKETS = [
+  { key: 'player_anytime_td',              label: 'Anytime TD',        group: 'Touchdowns' },
+  { key: 'player_1st_td',                  label: 'First TD',          group: 'Touchdowns' },
+  { key: 'player_last_td',                 label: 'Last TD',           group: 'Touchdowns' },
+
+  { key: 'player_pass_yds',                label: 'Pass Yards',        group: 'Passing' },
+  { key: 'player_pass_tds',                label: 'Pass TDs',          group: 'Passing' },
+  { key: 'player_pass_completions',        label: 'Completions',       group: 'Passing' },
+  { key: 'player_pass_attempts',           label: 'Pass Attempts',     group: 'Passing' },
+  { key: 'player_pass_interceptions',      label: 'Interceptions',     group: 'Passing' },
+  { key: 'player_pass_longest_completion', label: 'Longest Completion', group: 'Passing' },
+
+  { key: 'player_rush_yds',                label: 'Rush Yards',        group: 'Rushing' },
+  { key: 'player_rush_attempts',           label: 'Carries',           group: 'Rushing' },
+  { key: 'player_rush_longest',            label: 'Longest Rush',      group: 'Rushing' },
+
+  { key: 'player_reception_yds',           label: 'Rec Yards',         group: 'Receiving' },
+  { key: 'player_receptions',              label: 'Receptions',        group: 'Receiving' },
+  { key: 'player_reception_longest',       label: 'Longest Reception', group: 'Receiving' },
+
+  { key: 'player_rush_reception_yds',      label: 'Rush + Rec Yards',  group: 'Combined' },
+  { key: 'player_rush_reception_tds',      label: 'Rush + Rec TDs',    group: 'Combined' },
+  { key: 'player_pass_rush_reception_yds', label: 'Total Yards',       group: 'Combined' },
+  { key: 'player_pass_rush_reception_tds', label: 'Total TDs',         group: 'Combined' },
+
+  { key: 'player_kicking_points',          label: 'Kicking Points',    group: 'Kicking' },
+  { key: 'player_field_goals',             label: 'Field Goals',       group: 'Kicking' },
+  { key: 'player_pats',                    label: 'Extra Points',      group: 'Kicking' },
+
+  { key: 'player_tackles_assists',         label: 'Tackles + Assists', group: 'Defense' },
+  { key: 'player_solo_tackles',            label: 'Solo Tackles',      group: 'Defense' },
+  { key: 'player_sacks',                   label: 'Sacks',             group: 'Defense' },
+  { key: 'player_defensive_interceptions', label: 'Interceptions',     group: 'Defense' },
+];
+const PROP_GROUP_ORDER = ['Touchdowns', 'Passing', 'Rushing', 'Receiving', 'Combined', 'Kicking', 'Defense'];
+const MAX_PROP_MARKETS = 8;
+const DEFAULT_PROP_MARKETS = ['player_anytime_td', 'player_pass_tds', 'player_rush_yds', 'player_reception_yds'];
+const PROP_MARKET_KEYS = new Set(PROP_MARKETS.map(m => m.key));
+
+function propLabel(key) {
+  const m = PROP_MARKETS.find(x => x.key === key);
+  return m ? m.label : key.replace('player_', '').replace(/_/g, ' ');
+}
+
+// Which markets to show is a per-viewer preference, so it lives in localStorage
+// rather than the shared config — one person poking around the defense props
+// shouldn't reshape everyone else's board.
+function loadPropSelection() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('bumhole-prop-markets') || 'null');
+    if (Array.isArray(raw)) {
+      const clean = raw.filter(k => PROP_MARKET_KEYS.has(k)).slice(0, MAX_PROP_MARKETS);
+      if (clean.length) return clean;
+      return [];  // deliberately cleared
+    }
+  } catch (e) { /* fall through to defaults */ }
+  return DEFAULT_PROP_MARKETS.slice();
+}
+
+function savePropSelection() {
+  try { localStorage.setItem('bumhole-prop-markets', JSON.stringify(selectedPropMarkets)); } catch (e) {}
+}
+
 // ---------- STATE ----------
 let config = { week: 1, roster: [], weekOverride: null };
 let players = {};        // owner name -> pin
 let picks = {};          // owner name -> pick obj (current week)
 let scores = {};         // owner name -> fantasy score (current week)
 let games = [];
-let propsCache = {};     // gameId -> markets array
+let propsCache = {};     // gameId -> { data: {marketKey: outcomes[]}, fetchedAt: {marketKey: ts} }
+let propsError = {};     // gameId -> error text, cleared on a successful fetch
+let selectedPropMarkets = [];  // set from localStorage during init
 let manualGrades = {};   // legacy in-memory cache; grades now live on the picks rows
 let apiScoresCache = null;
 let sessionUser = null;
@@ -899,10 +1191,9 @@ async function trackCreditUsage(cost, label) {
 }
 
 function renderCreditStatus() {
-  const el = document.getElementById('creditStatus');
+  const el = document.getElementById('creditNum');
   if (!el) return;
-  if (creditUsageTotal === null) { el.textContent = ''; return; }
-  el.textContent = `API credits used (this app's running estimate, all viewers combined): ~${creditUsageTotal}`;
+  el.textContent = creditUsageTotal === null ? '\u2014' : `~${creditUsageTotal.toLocaleString()}`;
 }
 
 async function fetchOdds() {
@@ -932,24 +1223,52 @@ async function fetchOdds() {
   }
 }
 
+// Cached per (game, market) rather than per game, so widening the market
+// selection only pays for the markets that are actually new. Everything a
+// previous viewer already pulled stays free.
+function emptyPropEntry() { return { data: {}, fetchedAt: {} }; }
+
+function propEntryFor(gameId) {
+  const e = propsCache[gameId];
+  return e && e.data ? e : null;
+}
+
+// Markets we want for this game that aren't already cached and fresh.
+function missingPropMarkets(entry, now) {
+  return selectedPropMarkets.filter(k =>
+    !entry || !Array.isArray(entry.data[k]) || (now - (entry.fetchedAt[k] || 0) >= PROPS_CACHE_MS));
+}
+
 async function loadProps(gameId) {
-  if (propsCache[gameId] && propsCache[gameId] !== 'error') return propsCache[gameId];
-  const cached = await storageGet(`props-cache:${gameId}`);
-  if (cached && (Date.now() - cached.fetchedAt < PROPS_CACHE_MS)) {
-    propsCache[gameId] = cached.data;
-    return propsCache[gameId];
+  if (!selectedPropMarkets.length) return null;
+  let entry = propEntryFor(gameId);
+  if (!entry) {
+    const cached = await storageGet(`props-cache:${gameId}`);
+    entry = (cached && cached.data) ? { data: cached.data, fetchedAt: cached.fetchedAt || {} } : emptyPropEntry();
+    propsCache[gameId] = entry;
   }
+
+  const now = Date.now();
+  const missing = missingPropMarkets(entry, now).slice(0, MAX_PROP_MARKETS);
+  if (!missing.length) { delete propsError[gameId]; return entry; }
+
   try {
-    const data = await oddsApi('props', gameId);
+    const data = await oddsApi('props', gameId, missing.join(','));
     const dk = (data.bookmakers || [])[0];
-    const marketsData = dk ? dk.markets : [];
-    propsCache[gameId] = marketsData;
-    await storageSet(`props-cache:${gameId}`, { fetchedAt: Date.now(), data: marketsData });
-    await trackCreditUsage(4, 'props fetch'); // 4 prop markets × 1 region
-    return propsCache[gameId];
+    const returned = dk ? (dk.markets || []) : [];
+    // Stamp every market we asked for, not just the ones that came back — a
+    // market the book hasn't posted yet should read as "checked, nothing there"
+    // instead of being re-fetched (and re-billed) on every render.
+    missing.forEach(k => { entry.data[k] = []; entry.fetchedAt[k] = now; });
+    returned.forEach(m => { if (PROP_MARKET_KEYS.has(m.key)) entry.data[m.key] = m.outcomes || []; });
+    propsCache[gameId] = entry;
+    await storageSet(`props-cache:${gameId}`, { data: entry.data, fetchedAt: entry.fetchedAt });
+    await trackCreditUsage(missing.length, 'props fetch'); // 1 credit per market × 1 region
+    delete propsError[gameId];
+    return entry;
   } catch (e) {
-    propsCache[gameId] = 'error';
-    return 'error';
+    propsError[gameId] = e.message || 'failed';
+    return null;
   }
 }
 
@@ -996,6 +1315,73 @@ document.getElementById('filterReset').addEventListener('click', () => {
   document.getElementById('filterTeam').value = 'all';
   document.getElementById('filterType').value = 'all';
   renderBoard();
+});
+
+// ---------- PLAYER PROP FILTER ----------
+function renderPropFilter() {
+  const groupsEl = document.getElementById('propGroups');
+  const countEl = document.getElementById('propFilterCount');
+  const costEl = document.getElementById('propCost');
+  if (!groupsEl) return;
+
+  const atMax = selectedPropMarkets.length >= MAX_PROP_MARKETS;
+  groupsEl.innerHTML = PROP_GROUP_ORDER.map(group => {
+    const markets = PROP_MARKETS.filter(m => m.group === group);
+    if (!markets.length) return '';
+    return `<div class="prop-group">
+      <div class="pg-name">${group}</div>
+      <div class="prop-chips">${markets.map(m => {
+        const on = selectedPropMarkets.includes(m.key);
+        const maxed = !on && atMax;
+        return `<span class="prop-chip ${on ? 'on' : ''} ${maxed ? 'maxed' : ''}" data-market="${m.key}"
+          title="${maxed ? `Deselect one first \u2014 ${MAX_PROP_MARKETS} markets is the ceiling.` : m.key}">${m.label}</span>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
+
+  const n = selectedPropMarkets.length;
+  countEl.textContent = n ? `${n} of ${MAX_PROP_MARKETS} markets on` : 'off \u2014 no prop markets selected';
+  costEl.innerHTML = n
+    ? `<b>${n}</b> credit${n === 1 ? '' : 's'} per game you open props on`
+    : 'Props hidden \u2014 the board will spend nothing on them';
+
+  groupsEl.querySelectorAll('.prop-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const key = chip.dataset.market;
+      const at = selectedPropMarkets.indexOf(key);
+      if (at >= 0) selectedPropMarkets.splice(at, 1);
+      else if (selectedPropMarkets.length < MAX_PROP_MARKETS) selectedPropMarkets.push(key);
+      else return;
+      savePropSelection();
+      renderPropFilter();
+      renderBoard();
+    });
+  });
+}
+
+function setPropSelection(keys) {
+  selectedPropMarkets = keys.slice(0, MAX_PROP_MARKETS);
+  savePropSelection();
+  renderPropFilter();
+  renderBoard();
+}
+
+document.getElementById('propFilterHead').addEventListener('click', () => {
+  const body = document.getElementById('propFilterBody');
+  const open = body.classList.toggle('hidden') === false;
+  document.getElementById('propFilterCaret').textContent = open ? 'hide \u00ab' : 'show \u00bb';
+});
+document.getElementById('propPresetTd').addEventListener('click', (e) => {
+  e.stopPropagation();
+  setPropSelection(['player_anytime_td', 'player_1st_td', 'player_last_td']);
+});
+document.getElementById('propPresetSkill').addEventListener('click', (e) => {
+  e.stopPropagation();
+  setPropSelection(['player_anytime_td', 'player_pass_yds', 'player_pass_tds', 'player_rush_yds', 'player_receptions', 'player_reception_yds']);
+});
+document.getElementById('propPresetClear').addEventListener('click', (e) => {
+  e.stopPropagation();
+  setPropSelection([]);
 });
 
 function renderBoard() {
@@ -1048,23 +1434,47 @@ function renderBoard() {
     const spreads = markets.spreads ? markets.spreads.map(o=>outcomeBtn('spreads',o)).join('') : '<div class="status-msg">—</div>';
     const totals = markets.totals ? markets.totals.map(o=>outcomeBtn('totals',o)).join('') : '<div class="status-msg">—</div>';
 
-    const propsLoaded = propsCache[g.id] && propsCache[g.id] !== 'error';
+    // Props: show every selected market this game has lines for. Markets we
+    // fetched but the book hasn't posted (common for defense/kicking early in
+    // the week) get named rather than silently dropped — otherwise a board
+    // showing only anytime-TD looks broken when it's just what's available.
+    const entry = propEntryFor(g.id);
+    const now = Date.now();
+    const shown = selectedPropMarkets
+      .map(k => [k, entry ? entry.data[k] : undefined])
+      .filter(([, outcomes]) => Array.isArray(outcomes) && outcomes.length);
+    const emptyKeys = selectedPropMarkets
+      .filter(k => entry && Array.isArray(entry.data[k]) && !entry.data[k].length);
+    const pendingKeys = entry ? missingPropMarkets(entry, now) : selectedPropMarkets.slice();
+
     let propsHtml = '';
-    if (propsLoaded) {
-      propsHtml = `<div class="props-block">${propsCache[g.id].map(m => `
-        <div class="market-col"><div class="market-label">${m.key.replace('player_','').replace(/_/g,' ')}</div>
-        ${m.outcomes.map(o => {
-          const selId = `${g.id}::${m.key}::${o.description||o.name}::${o.point ?? ''}`;
-          const desc = `${o.description||o.name} ${m.key.replace('player_','').replace(/_/g,' ')} ${o.name}${o.point!==undefined?' '+o.point:''} (${g.away_team} @ ${g.home_team})`;
+    if (shown.length) {
+      propsHtml = `<div class="props-block">${shown.map(([key, outcomes]) => `
+        <div class="market-col"><div class="market-label">${propLabel(key)}</div>
+        ${outcomes.map(o => {
+          const selId = `${g.id}::${key}::${o.description||o.name}::${o.point ?? ''}`;
+          const desc = `${o.description||o.name} ${propLabel(key)} ${o.name}${o.point!==undefined?' '+o.point:''} (${g.away_team} @ ${g.home_team})`;
           const isMine = myPick && myPick.selId === selId;
           const disabled = (!sessionUser) || iAmFinancier || (!isMine && (takenGameIds.has(g.id) || myPick));
-          return `<button class="sel-btn ${isMine?'mine':''}" data-selid="${selId}" data-gameid="${g.id}" data-market="${m.key}"
+          return `<button class="sel-btn ${isMine?'mine':''}" data-selid="${selId}" data-gameid="${g.id}" data-market="${key}"
             data-selname="${o.description||o.name}::${o.name}" data-point="${o.point ?? ''}" data-home="${g.home_team}" data-away="${g.away_team}"
             data-desc="${desc.replace(/"/g,'&quot;')}" data-odds="${o.price}" ${disabled?'disabled':''}>
             <span>${o.description||o.name} ${o.name}${o.point!==undefined?' '+o.point:''}</span><span class="odds">${fmtAm(o.price)}</span></button>`;
         }).join('')}</div>`).join('')}</div>`;
-    } else if (propsCache[g.id] === 'error') {
-      propsHtml = `<div class="status-msg err" style="padding:0 12px 12px;">Props unavailable for this game right now.</div>`;
+    }
+    if (emptyKeys.length) {
+      propsHtml += `<div class="props-empty">No lines posted for: ${emptyKeys.map(propLabel).join(', ')}.</div>`;
+    }
+    if (propsError[g.id]) {
+      propsHtml += `<div class="status-msg err" style="padding:0 12px 12px;">Props unavailable for this game right now (${propsError[g.id]}).</div>`;
+    }
+
+    let toggleHtml = '';
+    if (!selectedPropMarkets.length) {
+      toggleHtml = `<span class="link" data-openpropfilter="1">turn on player props \u00bb</span>`;
+    } else if (pendingKeys.length) {
+      const verb = propsError[g.id] ? 'retry' : (shown.length || emptyKeys.length ? 'load' : 'show');
+      toggleHtml = `<span class="link" data-loadprops="${g.id}">${verb} player props (${pendingKeys.length} credit${pendingKeys.length === 1 ? '' : 's'}) \u00bb</span>`;
     }
 
     return `<div class="game">
@@ -1075,7 +1485,7 @@ function renderBoard() {
         <div class="market-col"><div class="market-label">Spread</div>${spreads}</div>
         <div class="market-col"><div class="market-label">Total</div>${totals}</div>
       </div>
-      <div class="props-toggle">${propsLoaded ? '' : `<span class="link" data-loadprops="${g.id}">${propsCache[g.id]==='error' ? 'retry player props' : 'show player props »'}</span>`}</div>
+      <div class="props-toggle">${toggleHtml}</div>
       ${propsHtml}
     </div>`;
   }).join('');
@@ -1093,7 +1503,18 @@ function renderBoard() {
     });
   });
   board.querySelectorAll('[data-loadprops]').forEach(el => {
-    el.addEventListener('click', async () => { await loadProps(el.dataset.loadprops); renderBoard(); });
+    el.addEventListener('click', async () => {
+      el.textContent = 'loading\u2026';
+      await loadProps(el.dataset.loadprops);
+      renderBoard();
+    });
+  });
+  board.querySelectorAll('[data-openpropfilter]').forEach(el => {
+    el.addEventListener('click', () => {
+      document.getElementById('propFilterBody').classList.remove('hidden');
+      document.getElementById('propFilterCaret').textContent = 'hide \u00ab';
+      document.getElementById('propFilter').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
   });
 }
 
@@ -1459,6 +1880,9 @@ async function init() {
     return;
   }
   showDbBanner('', false);
+
+  selectedPropMarkets = loadPropSelection();
+  renderPropFilter();
 
   const wk = currentWeekWindow();
   config.week = wk.week;
